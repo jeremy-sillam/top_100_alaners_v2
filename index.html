@@ -333,11 +333,11 @@ await firebase.firestore().collection('scores').add({
       const currentScore = snapshot.docs[0].data().score;
       
       if (stats.score > currentScore) {
-        await firebase.firestore().collection('scores').doc(docId).update({
-          score: stats.score,
-          discovered: stats.decouverts, // Changez stats.discovered à stats.decouverts
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
+await firebase.firestore().collection('scores').doc(docId).update({
+  score: stats.score,
+  discovered: stats.decouverts,
+  timestamp: firebase.firestore.FieldValue.serverTimestamp()
+});
       }
     }
     
