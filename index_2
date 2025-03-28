@@ -408,19 +408,19 @@ const saveScore = async () => {
 
 // Timer management
 useEffect(() => {
-    if (gameStarted && !gameEnded) {
+    if (jeuCommence && !jeuTermine) {
         timerRef.current = setInterval(function() {
-            setTimeRemaining(function(prev) {
+            setTempsRestant(function(prev) {
                 if (prev <= 1) {
                     clearInterval(timerRef.current);
-                    setGameEnded(true);
+                    setJeuTermine(true);
                     
-                    // Reveal all answers when time is up
-                    setEmployees(function(prevEmployees) {
-                        return prevEmployees.map(function(employee) {
+                    // Révéler toutes les réponses quand le temps est écoulé
+                    setEmployes(function(prevEmployes) {
+                        return prevEmployes.map(function(employe) {
                             return {
-                                ...employee,
-                                discovered: true
+                                ...employe,
+                                decouvert: true
                             };
                         });
                     });
@@ -440,7 +440,7 @@ useEffect(() => {
             clearInterval(timerRef.current);
         }
     };
-}, [gameStarted, gameEnded]);
+}, [jeuCommence, jeuTermine]);
 
             // Commencer le jeu
             function commencerJeu() {
