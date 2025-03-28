@@ -4,18 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>First 100 Alaners</title>
-
     <!-- React -->
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
-
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-
     <!-- PapaParse for CSV processing -->
     <script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"></script>
-
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -181,7 +177,6 @@
 </head>
 <body>
     <div id="root"></div>
-
     <script>
         // Firebase initialization
         const firebaseConfig = {
@@ -193,7 +188,6 @@
             appId: "1:996377669747:web:d27ab25e99d6c58278fa06",
             measurementId: "G-73746XWZ6C"
         };
-
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -361,7 +355,7 @@
                     });
             }
 
-            // Function to save score
+            // Function to save score and redirect to leaderboard
             function saveScore() {
                 if (!playerEmail) return;
                 
@@ -399,6 +393,12 @@
                             loadLeaderboard();
                             setMessage("Your score has been saved!");
                             setIsError(false);
+                            
+                            // Redirect to leaderboard view
+                            setIsPlaying(false);
+                            setJeuCommence(false);
+                            setJeuTermine(false);
+                            setEmployesCharges(false);
                         })
                         .catch((error) => {
                             console.error("Error saving score:", error);
@@ -433,7 +433,7 @@
                         });
                     });
                     
-                    // Save score
+                    // Save score and redirect to leaderboard
                     saveScore();
                 }
             }
@@ -490,7 +490,7 @@
                                     });
                                 });
                                 
-                                // Save score
+                                // Save score and redirect to leaderboard
                                 saveScore();
                                 
                                 return 0;
@@ -1176,40 +1176,9 @@
                                             className: "finish-button"
                                         },
                                         "Finish"
-                                    ),
-                                    
-                                    // Change email button
-                                    React.createElement(
-                                        "button",
-                                        {
-                                            onClick: () => {
-                                                if (jeuCommence && !jeuTermine) {
-                                                    if (window.confirm("Are you sure you want to quit? Your progress will be lost.")) {
-                                                        // Clean up timer
-                                                        if (timerRef.current) {
-                                                            clearInterval(timerRef.current);
-                                                        }
-                                                        
-                                                        // Reset game state
-                                                        setIsPlaying(false);
-                                                        setJeuCommence(false);
-                                                        setJeuTermine(false);
-                                                        setEmployesCharges(false);
-                                                    }
-                                                } else {
-                                                    // Reset game state
-                                                    setIsPlaying(false);
-                                                    setJeuCommence(false);
-                                                    setJeuTermine(false);
-                                                    setEmployesCharges(false);
-                                                }
-                                            },
-                                            style: {
-                                                backgroundColor: "#6b7280"
-                                            }
-                                        },
-                                        "Change Email"
                                     )
+                                    
+                                    // "Change Email" button removed as requested
                                 ]
                             )
                         ]
@@ -1352,15 +1321,14 @@
                             React.createElement(
                                 "p",
                                 { style: { fontStyle: "italic", margin: "10px 0" } },
-                                "All answers are now revealed. You can explore the complete list."
+                                "Your score is being saved. You'll be redirected to the leaderboard shortly..."
                             ),
                             
-                            // Action buttons after game ends
+                            // Play again button
                             React.createElement(
                                 "div",
                                 { className: "actions-container" },
                                 [
-                                    // Play again
                                     React.createElement(
                                         "button",
                                         { 
@@ -1383,29 +1351,6 @@
                                             }
                                         },
                                         "Play Again"
-                                    ),
-                                    
-                                    // Change email
-                                    React.createElement(
-                                        "button",
-                                        {
-                                            onClick: () => {
-                                                // Reset game state
-                                                setIsPlaying(false);
-                                                setJeuCommence(false);
-                                                setJeuTermine(false);
-                                                setEmployesCharges(false);
-                                                
-                                                // Clean up timer
-                                                if (timerRef.current) {
-                                                    clearInterval(timerRef.current);
-                                                }
-                                            },
-                                            style: {
-                                                backgroundColor: "#6b7280"
-                                            }
-                                        },
-                                        "Change Email"
                                     )
                                 ]
                             )
