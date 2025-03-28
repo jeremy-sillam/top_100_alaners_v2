@@ -11,7 +11,7 @@
 <script>
 // Votre configuration Firebase (remplacez par celle obtenue à l'étape précédente)
 const firebaseConfig = {
-  apiKey: "VOTRE_API_KEY",
+  apiKey: "AIzaSyCrvRv5dxD4bwlVoMsX2BnKTzp58UdOg2g",
   authDomain: "votre-projet.firebaseapp.com",
   projectId: "votre-projet",
   storageBucket: "votre-projet.appspot.com",
