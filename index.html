@@ -251,7 +251,7 @@
             });
             const [seuilSimilarite, setSeuilSimilarite] = useState(0.8);
             const [jeuCommence, setJeuCommence] = useState(false);
-            const [tempsRestant, setTempsRestant] = useState(3600); // 1 heure en secondes
+            const [tempsRestant, setTempsRestant] = useState(1200); // 20 minutes en secondes (modifié)
             const [jeuTermine, setJeuTermine] = useState(false);
             const timerRef = useRef(null);
             const scrollPositionRef = useRef(0);
@@ -325,7 +325,7 @@
             // Commencer le jeu
             function commencerJeu() {
                 setJeuCommence(true);
-                setTempsRestant(3600); // 1 heure
+                setTempsRestant(1200); // 20 minutes (modifié)
                 setJeuTermine(false);
                 
                 // Réinitialiser les employés découverts
@@ -339,7 +339,7 @@
                     return { ...prev, decouverts: 0, score: 0 };
                 });
                 
-                setMessage("Le jeu a commencé! Vous avez 1 heure pour trouver un maximum de noms.");
+                setMessage("Le jeu a commencé! Vous avez 20 minutes pour trouver un maximum de noms."); // Modifié
                 setIsError(false);
             }
 
@@ -431,7 +431,7 @@
                 scrollPositionRef.current = window.scrollY;
                 
                 if (!jeuCommence || jeuTermine) {
-                    setMessage(jeuTermine ? "Le temps est écoulé ! Toutes les réponses sont révélées. Cliquez sur 'Recommencer' pour jouer à nouveau." : "Cliquez sur 'Commencer' pour démarrer le jeu.");
+                    setMessage(jeuTermine ? "Le temps est écoulé ! Toutes les réponses sont révélées." : "Cliquez sur 'Commencer' pour démarrer le jeu.");
                     setIsError(true);
                     return;
                 }
@@ -571,22 +571,6 @@
                 });
             }
 
-            // Réinitialiser le jeu
-            function reinitialiser() {
-                if (timerRef.current) {
-                    clearInterval(timerRef.current);
-                }
-                
-                setEmployes(employes.map(function(e) { return { ...e, decouvert: false }; }));
-                setStats({ total: employes.length, decouverts: 0, score: 0 });
-                setIndicesActives({ communaute: false, role: false, initiales: false });
-                setJeuCommence(false);
-                setJeuTermine(false);
-                setTempsRestant(3600);
-                setMessage("Jeu réinitialisé ! Cliquez sur 'Commencer' pour démarrer une nouvelle partie.");
-                setIsError(false);
-            }
-
             // Modifier le seuil de similarité
             function changerSeuilSimilarite(e) {
                 setSeuilSimilarite(parseFloat(e.target.value));
@@ -663,7 +647,7 @@
                                     React.createElement("li", null, "Les orthographes approximatives sont acceptées"),
                                     React.createElement("li", null, [
                                         "Vous avez ",
-                                        React.createElement("strong", null, "1 heure"),
+                                        React.createElement("strong", null, "20 minutes"),
                                         " pour trouver un maximum de noms !"
                                     ])
                                 ]
@@ -836,18 +820,35 @@
                                 ]
                             ),
                             
-                            // Contrôles (boutons)
-                            React.createElement(
+                            // Bouton recommencer (uniquement visible quand le jeu est terminé)
+                            jeuTermine && React.createElement(
                                 "div",
-                                { style: { display: "flex", flexWrap: "wrap", gap: "10px" } },
-                                [
-                                    // Bouton réinitialiser/recommencer
-                                    React.createElement(
-                                        "button",
-                                        { onClick: reinitialiser },
-                                        jeuTermine ? "Recommencer" : "Réinitialiser"
-                                    )
-                                ]
+                                { style: { textAlign: "center", marginTop: "10px" } },
+                                React.createElement(
+                                    "button",
+                                    { 
+                                        onClick: () => {
+                                            if (timerRef.current) {
+                                                clearInterval(timerRef.current);
+                                            }
+                                            
+                                            setEmployes(employes.map(function(e) { return { ...e, decouvert: false }; }));
+                                            setStats({ total: employes.length, decouverts: 0, score: 0 });
+                                            setIndicesActives({ communaute: false, role: false, initiales: false });
+                                            setJeuCommence(false);
+                                            setJeuTermine(false);
+                                            setTempsRestant(1200);
+                                            setMessage("Jeu réinitialisé ! Cliquez sur 'Commencer' pour démarrer une nouvelle partie.");
+                                            setIsError(false);
+                                        },
+                                        style: {
+                                            backgroundColor: "#3b82f6",
+                                            padding: "10px 20px",
+                                            fontSize: "16px"
+                                        }
+                                    },
+                                    "Recommencer"
+                                )
                             )
                         ]
                     ),
@@ -964,9 +965,17 @@
                     // Message de fin de jeu
                     jeuTermine && React.createElement(
                         "div",
-                        { className: "game-over" },
+                        { 
+                            style: { 
+                                backgroundColor: "#fee2e2", 
+                                padding: "20px", 
+                                borderRadius: "8px", 
+                                textAlign: "center", 
+                                marginTop: "20px" 
+                            } 
+                        },
                         [
-                            React.createElement("h2", null, "Temps écoulé !"),
+                            React.createElement("h2", { style: { color: "#b91c1c" } }, "Temps écoulé !"),
                             React.createElement(
                                 "p",
                                 null,
@@ -985,7 +994,32 @@
                             ),
                             React.createElement(
                                 "button",
-                                { onClick: reinitialiser },
+                                { 
+                                    onClick: () => {
+                                        if (timerRef.current) {
+                                            clearInterval(timerRef.current);
+                                        }
+                                        
+                                        setEmployes(employes.map(function(e) { return { ...e, decouvert: false }; }));
+                                        setStats({ total: employes.length, decouverts: 0, score: 0 });
+                                        setIndicesActives({ communaute: false, role: false, initiales: false });
+                                        setJeuCommence(false);
+                                        setJeuTermine(false);
+                                        setTempsRestant(1200);
+                                        setMessage("Jeu réinitialisé ! Cliquez sur 'Commencer' pour démarrer une nouvelle partie.");
+                                        setIsError(false);
+                                    },
+                                    style: {
+                                        backgroundColor: "#3b82f6",
+                                        color: "white",
+                                        padding: "10px 20px",
+                                        borderRadius: "4px",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        fontWeight: "bold",
+                                        marginTop: "10px"
+                                    }
+                                },
                                 "Rejouer"
                             )
                         ]
