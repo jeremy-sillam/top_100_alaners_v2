@@ -356,8 +356,12 @@
             }
 
             // Function to save score and redirect to leaderboard
-            function saveScore() {
+            function saveScore(forceScore = null, forceDiscovered = null) {
                 if (!playerEmail) return;
+                
+                // Use forced values or current state values
+                const scoreToSave = forceScore !== null ? forceScore : stats.score;
+                const discoveredToSave = forceDiscovered !== null ? forceDiscovered : stats.decouverts;
                 
                 try {
                     // Check if player already has a score
@@ -369,8 +373,8 @@
                                 // Create a new score
                                 return db.collection("scores").add({
                                     email: playerEmail,
-                                    score: stats.score,
-                                    discovered: stats.decouverts,
+                                    score: scoreToSave,
+                                    discovered: discoveredToSave,
                                     total: stats.total,
                                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                                 });
@@ -378,10 +382,10 @@
                                 // Update existing score if new score is higher
                                 const doc = snapshot.docs[0];
                                 const currentScore = doc.data().score;
-                                if (stats.score > currentScore) {
+                                if (scoreToSave > currentScore) {
                                     return db.collection("scores").doc(doc.id).update({
-                                        score: stats.score,
-                                        discovered: stats.decouverts,
+                                        score: scoreToSave,
+                                        discovered: discoveredToSave,
                                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                                     });
                                 } else {
@@ -481,6 +485,11 @@
                         setTempsRestant(function(prev) {
                             if (prev <= 1) {
                                 clearInterval(timerRef.current);
+                                
+                                // Store current stats before state updates
+                                const currentScore = stats.score;
+                                const currentDiscovered = stats.decouverts;
+                                
                                 setJeuTermine(true);
                                 
                                 // Reveal all answers when time is up
@@ -490,8 +499,8 @@
                                     });
                                 });
                                 
-                                // Save score and redirect to leaderboard
-                                saveScore();
+                                // Save score with the current values
+                                saveScore(currentScore, currentDiscovered);
                                 
                                 return 0;
                             }
