@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jeu des 100 premiers Alaniens - Version Simple</title>
+    <title>Les 100 premiers Alaniens</title>
 
     <!-- React -->
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
@@ -13,52 +13,73 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
+    <!-- PapaParse pour le traitement CSV -->
+    <script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"></script>
+
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
-            max-width: 800px;
+            padding: 0;
+            background-color: #f9fafb;
+        }
+        #root {
             margin: 0 auto;
+            max-width: 800px;
+            padding: 20px;
         }
         .container {
-            background-color: #f9fafb;
+            background-color: #f5f5f5;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
         }
         button {
-            background-color: #3b82f6;
+            background-color: #4285f4;
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 10px 15px;
             border-radius: 4px;
             cursor: pointer;
-            margin-right: 8px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
         input {
-            padding: 8px;
-            margin: 8px 0;
             width: 100%;
-            border: 1px solid #d1d5db;
+            padding: 8px;
+            border: 1px solid #ddd;
             border-radius: 4px;
+            margin-bottom: 10px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 16px;
+            margin-top: 15px;
+            margin-bottom: 20px;
         }
         th, td {
-            padding: 8px;
+            padding: 10px;
             text-align: left;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid #ddd;
         }
         th {
-            background-color: #f3f4f6;
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        .highlight {
+            background-color: #e8f5e9;
         }
         .message {
             margin: 16px 0;
-            padding: 8px;
+            padding: 12px;
             border-radius: 4px;
         }
         .error {
@@ -69,13 +90,85 @@
             background-color: #dcfce7;
             color: #166534;
         }
+        .hint-button {
+            background-color: #f59e0b;
+            margin-right: 5px;
+        }
+        .hint-button.active {
+            background-color: #d97706;
+        }
+        .timer {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            background-color: #f0f9ff;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .timer.ending {
+            color: #b91c1c;
+            background-color: #fee2e2;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .sensitivity-slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+        .employee-list {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .employee-list-header {
+            background-color: #1f2937;
+            color: white;
+            padding: 10px 15px;
+            font-weight: bold;
+        }
+        .employee-table {
+            width: 100%;
+        }
+        .employee-table th {
+            background-color: #f3f4f6;
+        }
+        .employee-table tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        .hidden-name {
+            color: #9ca3af;
+        }
+        .game-over {
+            background-color: #fee2e2;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .game-over h2 {
+            color: #b91c1c;
+        }
+        .sticky-search {
+            position: sticky;
+            top: 0;
+            background-color: white;
+            padding: 10px 0;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script>
-        // Initialisation de Firebase avec une structure simplifiée
+        // Initialisation de Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCrvRv5dxD4bwlVoMsX2BnKTzp58UdOg2g",
             authDomain: "first-100-alaners.firebaseapp.com",
@@ -90,18 +183,211 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Composant simple
+        // Données complètes des employés
+        const donneesBrutes = `employee_id,first_name,last_name,original_start_date,community,role,first_initial,last_initial
+0,Jean-Charles,Samuelian,"1 Jan, 2016",Co-founders,CEO,J,S
+1,Charles,Gorintin,"1 Jan, 2016",Co-founders,CTO,C,G
+3,Antoine,Lizee,"9 May, 2016",Data,Full Stack Data Scientist,A,L
+4,Robert,Zyskowski,"23 May, 2016",Engineering,Software Engineer,R,Z
+6,Paul,Sauveplane,"20 Jun, 2016",Market and Bet Owners,Alaner Experience Lead,P,S
+8,Fabrice,Staad,"1 Aug, 2016",Market and Bet Owners,Unit Lead - France,F,S
+10,Kevin,Aserraf,"6 Mar, 2017",Marketing,Product Marketing,K,A
+13,Olivier,Sambourg,"6 Jun, 2017",Engineering,Software Engineer,O,S
+15,James,Whitbeck,"4 Sep, 2017",Engineering,Software Engineer,J,W
+19,Leo,Andres,"8 Jan, 2018",Care,Care Crew Lead,L,A
+23,Vincent,Brachet,"9 Apr, 2018",Sales,Sales Crew Lead,V,B
+22,Clement,Mennesson,"4 Jun, 2018",Product Management,Product Manager,C,M
+24,Thomas,Rolf,"18 Jun, 2018",Product Management,Community Lead,T,R
+28,Marie,Hardel,"2 Jul, 2018",Care,Community Lead,M,H
+34,Cyril,Vinot,"3 Jul, 2018",Data,Full Stack Data Scientist,C,V
+46,Benjamin,Benouarka,"24 Sep, 2018",IT,IT Ops Specialist,B,B
+44,Marion,Doumeingts,"1 Oct, 2018",Design and Research,Product Designer,M,D
+57,Eleonore,Adrian,"1 Oct, 2018",Sales,Sales Crew Lead,E,A
+38,Laurane,Maitrel,"8 Oct, 2018",Product Management,Product Manager,L,M
+47,Julien,Chenat,"15 Oct, 2018",Design and Research,Product Designer,J,C
+60,Naïm,Smutz,"22 Oct, 2018",Care,Product Specialist,N,S
+45,Lucie,Leflour,"29 Oct, 2018",Sales,Sales Lead,L,L
+51,Chloe,Legrand,"12 Nov, 2018",Care,Care Ops,C,L
+61,Mihaela,Albu,"12 Nov, 2018",Finance,Community Lead,M,A
+65,Berangere,Giraud,"21 Nov, 2018",Care,Customer Support Specialist - Entreprise,B,G
+55,Antoine,Moulet,"1 Dec, 2018",Product Management,Product Manager,A,M
+64,Augustin,Mine,"7 Jan, 2019",Market and Bet Owners,Community Lead,A,M
+58,Jean,Barloy,"14 Jan, 2019",Engineering,Software Engineer,J,B
+66,Thierry,Godfroid,"4 Feb, 2019",Engineering,Software Engineer,T,G
+77,Victor,Dancette,"1 Apr, 2019",Sales,Sales Crew Lead,V,D
+84,Claire,Lacroix,"1 Apr, 2019",Operations,Ops Coordinator,C,L
+83,Ariane,Bayat,"15 Apr, 2019",Sales,Sales Crew Lead,A,B
+70,Paulo,Gemelgo,"6 May, 2019",Insurance,Insurance Business,P,G
+86,Thomas,Mollard,"20 May, 2019",Engineering,Software Engineer,T,M
+102,Stephane,Soulier,"20 May, 2019",Data,Full Stack Data Scientist,S,S
+82,Antoine,Jackson,"17 Jun, 2019",Engineering,Software Engineer,A,J
+97,Flavie,de The,"17 Jun, 2019",Data,Full Stack Data Scientist,F,d
+87,Remi,Schockmel,"1 Jul, 2019",Sales,Sales Crew Lead,R,S
+94,Guillaume,Nevoux,"1 Jul, 2019",IT,IT Ops Specialist,G,N
+100,Remy-Christophe,Schermesser,"1 Jul, 2019",Engineering,Engineering Unit Referent,R,S
+112,Charles,Dusser,"1 Jul, 2019",Business Strategy and Operations,Community Lead,C,D
+99,Simon,Perre,"15 Jul, 2019",Operations,Ops Builder,S,P
+123,Clemence,Collon,"19 Aug, 2019",Operations,Ops Coordinator,C,C
+131,Fanette,Lopez,"19 Aug, 2019",Care,Knowledge Specialist,F,L
+117,Thomas,Repichet,"2 Sep, 2019",Sales,Sales Crew Lead,T,R
+120,Pierre-Yves,Caneill,"2 Sep, 2019",Engineering,Software Engineer,P,C
+116,Lorraine,Pipart,"16 Sep, 2019",Operations,Ops Coordinator,L,P
+128,Alexandre,Gerlic,"16 Sep, 2019",Engineering,Community Lead,A,G
+114,Clement,Sixdenier,"7 Oct, 2019",Sales,Account Manager,C,S
+121,David,Merckle,"7 Oct, 2019",Engineering,Engineering Unit Referent,D,M
+132,Manon,Trabuc,"7 Oct, 2019",People,People Ops,M,T
+143,Florian,Gagnadre,"7 Oct, 2019",Engineering,Software Engineer,F,G
+149,Lucie,Paladino,"7 Oct, 2019",Workplace,Community Lead,L,P
+134,Vincent,Perrot,"21 Oct, 2019",Operations,Ops Coordinator,V,P
+154,Maxence,Bouret,"21 Oct, 2019",Engineering,Software Engineer,M,B
+122,Lucie,Touchais,"4 Nov, 2019",People,People Growth,L,T
+137,Heloïse,Poras,"4 Nov, 2019",Operations,Ops Coordinator,H,P
+155,Sophie,Bussieres Cauberghs,"4 Nov, 2019",Operations,Community Lead,S,B
+141,Julie,Rossi,"18 Nov, 2019",Engineering,Software Engineer,J,R
+152,Ludovic,Bauple,"20 Nov, 2019",Sales,Revenue Lead,L,B
+138,Caroline,Carre,"2 Dec, 2019",Care,Care Crew Lead,C,C
+159,Juliette,Raimbault,"2 Dec, 2019",People,Community Lead,J,R
+163,Maryline,Lefebvre,"16 Dec, 2019",Operations,Ops Coordinator,M,L
+168,Laure,Bonnefoi,"16 Dec, 2019",Care,Product Specialist,L,B
+178,Lea,Vallerian,"16 Dec, 2019",Operations,Ops Coordinator,L,V
+145,Ujala,Anis,"20 Jan, 2020",Design and Research,Community Lead,U,A
+166,Caroline,Boudard,"3 Feb, 2020",Care,Product Specialist,C,B
+181,Thomas,Dudouet,"3 Feb, 2020",Engineering,Software Engineer,T,D
+179,Anastasia,Melnichenko,"17 Feb, 2020",Design and Research,Product Designer,A,M
+172,Marc,Faget,"2 Mar, 2020",Finance,Finance,M,F
+201,Romain,Stourm,"6 Apr, 2020",Sales,Sales Crew Lead,R,S
+204,Donatien,Laplace,"6 Apr, 2020",Sales,Account Executive,D,L
+216,Gregoire,Roussel,"6 Apr, 2020",Sales,Account Executive,G,R
+193,Maxime,Robinet,"4 May, 2020",Design and Research,Product Designer,M,R
+195,Emilie,Quellec,"4 May, 2020",Sales,Account Executive,E,Q
+196,Thomas,Porez,"4 May, 2020",Data,Full Stack Data Scientist,T,P
+197,Timna,Ehrmann,"4 May, 2020",Data,Full Stack Data Scientist,T,E
+221,Brecht,Verhamme,"4 May, 2020",Operations,Ops Builder,B,V
+223,Mohamed Ghazi,Benabid,"18 May, 2020",Business Strategy and Operations,Sales Strategist,M,B
+227,Marie-Helene,Stoltz,"18 May, 2020",Business Strategy and Operations,CRM manager,M,S
+236,Thibault,Devalle-Predieri,"18 May, 2020",Sales,Account Executive,T,D
+210,Mathieu,Ghaleb,"1 Jun, 2020",Engineering,Software Engineer,M,G
+237,Victor,Boutin,"1 Jun, 2020",Sales,Account Executive,V,B
+235,Laurent,Guerin,"15 Jun, 2020",Insurance,Community Lead,L,G
+242,Marion,Bergeret,"15 Jun, 2020",Corporate,Corporate Lead,M,B
+245,Simon,Verlaque,"15 Jun, 2020",Business Strategy and Operations,Sales Strategist,S,V
+247,Vincent,Poulain,"15 Jun, 2020",Engineering,Software Engineer,V,P
+230,Thomas,Quinot,"6 Jul, 2020",Corporate,Information security lead / CISO,T,Q
+249,Estelle,Pasteau,"20 Jul, 2020",Talent,Talent,E,P
+258,Tristan,du Boys,"20 Jul, 2020",Operations,Ops Coordinator,T,d
+234,Theo,Sermet,"17 Aug, 2020",Insurance,Insurance Products,T,S
+248,Sebastien,de Larquier,"17 Aug, 2020",Data,Community Lead,S,d
+240,Aurelie,Fliedel,"31 Aug, 2020",Marketing,Community Lead,A,F
+257,David,Rousselie,"31 Aug, 2020",Engineering,Software Engineer,D,R
+261,Alfredo,Schoch,"31 Aug, 2020",Operations,Ops Builder,A,S
+259,Sebastien,Fredeau,"14 Sep, 2020",Market and Bet Owners,Unit Lead - Belgium,S,F
+251,Josephine,Gaillet,"28 Sep, 2020",Care,Care Ops,J,G
+254,Dries,Stevens,"28 Sep, 2020",Sales,Sales Lead,D,S
+255,Nicolas,Zermati,"26 Oct, 2020",Engineering,Software Engineer,N,Z
+164,Lea,Vaude,"3 Sep, 2024",Sales,Customer Success Manager,L,V`;
+
+        // Composant principal
         function App() {
-            const [email, setEmail] = React.useState("");
-            const [message, setMessage] = React.useState("");
-            const [isError, setIsError] = React.useState(false);
-            const [leaderboard, setLeaderboard] = React.useState([]);
-            const [isLoading, setIsLoading] = React.useState(true);
+            const { useState, useEffect, useRef } = React;
+            
+            // États
+            const [playerEmail, setPlayerEmail] = useState("");
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [message, setMessage] = useState("");
+            const [isError, setIsError] = useState(false);
+            const [leaderboard, setLeaderboard] = useState([]);
+            const [isLoading, setIsLoading] = useState(true);
+            
+            // États du jeu
+            const [employes, setEmployes] = useState([]);
+            const [employesCharges, setEmployesCharges] = useState(false);
+            const [recherche, setRecherche] = useState("");
+            const [stats, setStats] = useState({ total: 0, decouverts: 0, score: 0 });
+            const [indicesActives, setIndicesActives] = useState({
+                communaute: false,
+                role: false,
+                initiales: false
+            });
+            const [seuilSimilarite, setSeuilSimilarite] = useState(0.8);
+            const [jeuCommence, setJeuCommence] = useState(false);
+            const [tempsRestant, setTempsRestant] = useState(3600); // 1 heure en secondes
+            const [jeuTermine, setJeuTermine] = useState(false);
+            const timerRef = useRef(null);
+            const scrollPositionRef = useRef(0);
 
             // Charger le leaderboard au démarrage
-            React.useEffect(() => {
+            useEffect(() => {
                 loadLeaderboard();
             }, []);
+
+            // Charger les données des employés
+            useEffect(() => {
+                if (!employesCharges) {
+                    Papa.parse(donneesBrutes, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            // Transformer les données
+                            const donnees = results.data.map(function(employe) {
+                                return {
+                                    id: employe.employee_id,
+                                    prenom: employe.first_name,
+                                    nom: employe.last_name,
+                                    dateDebut: employe.original_start_date,
+                                    communaute: employe.community,
+                                    role: employe.role,
+                                    initialePrenom: employe.first_initial,
+                                    initialeNom: employe.last_initial,
+                                    longueurNom: employe.last_name.length,
+                                    decouvert: false
+                                };
+                            });
+                            
+                            // Trier les employés par ID
+                            donnees.sort(function(a, b) {
+                                return parseInt(a.id) - parseInt(b.id);
+                            });
+                            
+                            setEmployes(donnees);
+                            setStats({ total: donnees.length, decouverts: 0, score: 0 });
+                            setEmployesCharges(true);
+                        }
+                    });
+                }
+            }, [employesCharges]);
+
+            // Gestion du timer
+            useEffect(() => {
+                if (jeuCommence && !jeuTermine) {
+                    timerRef.current = setInterval(function() {
+                        setTempsRestant(function(prev) {
+                            if (prev <= 1) {
+                                clearInterval(timerRef.current);
+                                setJeuTermine(true);
+                                
+                                // Révéler toutes les réponses quand le temps est écoulé
+                                setEmployes(function(prevEmployes) {
+                                    return prevEmployes.map(function(employe) {
+                                        return { ...employe, decouvert: true };
+                                    });
+                                });
+                                
+                                // Sauvegarder le score
+                                saveScore();
+                                
+                                return 0;
+                            }
+                            return prev - 1;
+                        });
+                    }, 1000);
+                }
+                
+                return function() {
+                    if (timerRef.current) {
+                        clearInterval(timerRef.current);
+                    }
+                };
+            }, [jeuCommence, jeuTermine]);
 
             // Fonction pour charger le leaderboard
             function loadLeaderboard() {
@@ -120,8 +406,6 @@
                         });
                         setLeaderboard(scores);
                         setIsLoading(false);
-                        setMessage("Classement chargé avec succès");
-                        setIsError(false);
                     })
                     .catch((error) => {
                         console.error("Erreur lors du chargement du classement:", error);
@@ -131,133 +415,975 @@
                     });
             }
 
-            // Fonction pour ajouter un score de test
-            function addTestScore() {
-                if (!email || !email.includes("@")) {
-                    setMessage("Veuillez entrer une adresse email valide");
-                    setIsError(true);
-                    return;
-                }
-
-                const score = Math.floor(Math.random() * 100);
-                const discovered = Math.floor(Math.random() * 50);
-
-                db.collection("scores")
-                    .where("email", "==", email)
-                    .get()
-                    .then((snapshot) => {
-                        if (snapshot.empty) {
-                            // Nouveau score
-                            return db.collection("scores").add({
-                                email: email,
-                                score: score,
-                                discovered: discovered,
-                                total: 100,
-                                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-                        } else {
-                            // Mettre à jour le score existant si le nouveau est plus élevé
-                            const doc = snapshot.docs[0];
-                            const currentScore = doc.data().score;
-                            if (score > currentScore) {
-                                return db.collection("scores").doc(doc.id).update({
-                                    score: score,
-                                    discovered: discovered,
+            // Fonction pour sauvegarder le score
+            function saveScore() {
+                if (!playerEmail) return;
+                
+                try {
+                    // Vérifier si le joueur a déjà un score
+                    db.collection("scores")
+                        .where("email", "==", playerEmail)
+                        .get()
+                        .then((snapshot) => {
+                            if (snapshot.empty) {
+                                // Créer un nouveau score
+                                return db.collection("scores").add({
+                                    email: playerEmail,
+                                    score: stats.score,
+                                    discovered: stats.decouverts,
+                                    total: stats.total,
                                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                                 });
                             } else {
-                                setMessage(`Score actuel (${currentScore}) plus élevé que le nouveau score (${score})`);
-                                setIsError(false);
-                                return Promise.resolve();
+                                // Mettre à jour le score existant si le nouveau est plus élevé
+                                const doc = snapshot.docs[0];
+                                const currentScore = doc.data().score;
+                                if (stats.score > currentScore) {
+                                    return db.collection("scores").doc(doc.id).update({
+                                        score: stats.score,
+                                        discovered: stats.decouverts,
+                                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                                    });
+                                } else {
+                                    return Promise.resolve();
+                                }
                             }
-                        }
-                    })
-                    .then(() => {
-                        setMessage(`Score de test (${score}) ajouté/mis à jour avec succès !`);
-                        setIsError(false);
-                        loadLeaderboard();
-                    })
-                    .catch((error) => {
-                        console.error("Erreur lors de l'ajout du score:", error);
-                        setMessage("Erreur lors de l'ajout du score: " + error.message);
-                        setIsError(true);
-                    });
+                        })
+                        .then(() => {
+                            loadLeaderboard();
+                        })
+                        .catch((error) => {
+                            console.error("Erreur sauvegarde score:", error);
+                        });
+                } catch (error) {
+                    console.error("Erreur lors de la sauvegarde du score:", error);
+                }
             }
 
+            // Fonction pour commencer à jouer
+            function handleStartPlaying(e) {
+                e.preventDefault();
+                if (!playerEmail || !playerEmail.includes('@')) {
+                    setMessage("Veuillez saisir une adresse email valide");
+                    setIsError(true);
+                    return;
+                }
+                
+                setIsPlaying(true);
+                setMessage(`Bienvenue, ${playerEmail.split('@')[0]}! Cliquez sur "Commencer" pour démarrer le jeu.`);
+                setIsError(false);
+            }
+
+            // Commencer le jeu
+            function commencerJeu() {
+                setJeuCommence(true);
+                setTempsRestant(3600); // 1 heure
+                setJeuTermine(false);
+                
+                // Réinitialiser les employés découverts
+                setEmployes(function(prevEmployes) {
+                    return prevEmployes.map(function(employe) {
+                        return { ...employe, decouvert: false };
+                    });
+                });
+                
+                setStats(function(prev) { 
+                    return { ...prev, decouverts: 0, score: 0 };
+                });
+                
+                setMessage("Le jeu a commencé! Vous avez 1 heure pour trouver un maximum de noms.");
+                setIsError(false);
+            }
+
+            // Formater le temps restant
+            function formaterTemps(secondes) {
+                const minutes = Math.floor(secondes / 60);
+                const secondesRestantes = secondes % 60;
+                return `${minutes.toString().padStart(2, '0')}:${secondesRestantes.toString().padStart(2, '0')}`;
+            }
+
+            // Fonction de calcul de la distance de Levenshtein (mesure de similarité entre deux chaînes)
+            function levenshteinDistance(a, b) {
+                const matrix = [];
+                
+                // Incrémente
+                function increment(i, j) {
+                    return matrix[i][j] + 1;
+                }
+                
+                // Insertion
+                function insertion(i, j) {
+                    return matrix[i][j - 1] + 1;
+                }
+                
+                // Substitution
+                function substitution(i, j) {
+                    return matrix[i - 1][j - 1] + (a[i - 1] !== b[j - 1] ? 1 : 0);
+                }
+                
+                // Initialisation de la matrice
+                for (let i = 0; i <= a.length; i++) {
+                    matrix[i] = [i];
+                }
+                
+                for (let j = 1; j <= b.length; j++) {
+                    matrix[0][j] = j;
+                }
+                
+                // Remplissage de la matrice
+                for (let i = 1; i <= a.length; i++) {
+                    for (let j = 1; j <= b.length; j++) {
+                        matrix[i][j] = Math.min(
+                            increment(i - 1, j),     // suppression
+                            insertion(i, j),         // insertion
+                            substitution(i, j)       // substitution
+                        );
+                    }
+                }
+                
+                return matrix[a.length][b.length];
+            }
+
+            // Calcule la similarité entre deux chaînes (entre 0 et 1)
+            function calculateSimilarity(str1, str2) {
+                const maxLength = Math.max(str1.length, str2.length);
+                if (maxLength === 0) return 1.0; // Si les deux chaînes sont vides, elles sont identiques
+                
+                const distance = levenshteinDistance(str1, str2);
+                return 1.0 - distance / maxLength;
+            }
+
+            // Trouver le meilleur match pour un nom recherché
+            function trouverMeilleurMatch(nomRecherche) {
+                let meilleurMatch = null;
+                let meilleureSimilarite = 0;
+                
+                employes.forEach(function(employe) {
+                    if (!employe.decouvert) {
+                        const similarite = calculateSimilarity(
+                            nomRecherche.toLowerCase(),
+                            employe.nom.toLowerCase()
+                        );
+                        
+                        if (similarite > meilleureSimilarite && similarite >= seuilSimilarite) {
+                            meilleureSimilarite = similarite;
+                            meilleurMatch = employe;
+                        }
+                    }
+                });
+                
+                return { employe: meilleurMatch, similarite: meilleureSimilarite };
+            }
+
+            // Gérer la soumission du formulaire de recherche
+            function verifierNom(e) {
+                e.preventDefault();
+                
+                // Sauvegarder la position de défilement actuelle
+                scrollPositionRef.current = window.scrollY;
+                
+                if (!jeuCommence || jeuTermine) {
+                    setMessage(jeuTermine ? "Le temps est écoulé ! Toutes les réponses sont révélées. Cliquez sur 'Recommencer' pour jouer à nouveau." : "Cliquez sur 'Commencer' pour démarrer le jeu.");
+                    setIsError(true);
+                    return;
+                }
+                
+                if (!recherche.trim()) {
+                    setMessage("Veuillez entrer un nom");
+                    setIsError(true);
+                    return;
+                }
+                
+                const nomRecherche = recherche.trim().toLowerCase();
+                
+                // Vérifier si le nom est exactement le même
+                const employeExact = employes.find(
+                    function(e) { return e.nom.toLowerCase() === nomRecherche && !e.decouvert; }
+                );
+                
+                // Si pas de correspondance exacte, chercher le meilleur match
+                if (!employeExact) {
+                    const { employe: meilleurMatch, similarite } = trouverMeilleurMatch(nomRecherche);
+                    
+                    if (meilleurMatch) {
+                        // Trouver un match approximatif
+                        let pointsGagnes = 10; // Par défaut, 10 points sans indices
+                        
+                        // Calculer les points en fonction des indices utilisés
+                        if (indicesActives.communaute && indicesActives.role && indicesActives.initiales) {
+                            pointsGagnes = 1; // 1 point avec tous les indices
+                        } else if ((indicesActives.communaute && indicesActives.role) || 
+                                (indicesActives.communaute && indicesActives.initiales) || 
+                                (indicesActives.role && indicesActives.initiales)) {
+                            pointsGagnes = 3; // 3 points avec deux indices
+                        } else if (indicesActives.communaute || indicesActives.role || indicesActives.initiales) {
+                            pointsGagnes = 5; // 5 points avec un seul indice
+                        }
+                        
+                        // Réduire légèrement les points pour les correspondances approximatives
+                        pointsGagnes = Math.round(pointsGagnes * similarite);
+                        
+                        setStats(function(prev) { 
+                            return { 
+                                ...prev, 
+                                decouverts: prev.decouverts + 1,
+                                score: prev.score + pointsGagnes
+                            };
+                        });
+                        
+                        // Mettre à jour l'employé comme découvert
+                        setEmployes(function(prev) {
+                            return prev.map(function(e) {
+                                return e.id === meilleurMatch.id ? { ...e, decouvert: true } : e;
+                            });
+                        });
+                        
+                        setMessage(`Bravo ! Vous avez trouvé un employé avec un nom similaire : "${meilleurMatch.prenom} ${meilleurMatch.nom}" (${Math.round(similarite * 100)}% de similarité). +${pointsGagnes} points !`);
+                        setIsError(false);
+                        setRecherche("");
+                        
+                        // Restaurer la position de défilement après le rendu
+                        setTimeout(function() {
+                            window.scrollTo(0, scrollPositionRef.current);
+                        }, 0);
+                        
+                        return;
+                    }
+                    
+                    // Vérifier si l'employé a déjà été découvert
+                    const employeDejaDecouvert = employes.find(
+                        function(e) { return e.nom.toLowerCase() === nomRecherche && e.decouvert; }
+                    );
+                    
+                    if (employeDejaDecouvert) {
+                        setMessage(`Vous avez déjà découvert ${employeDejaDecouvert.prenom} ${employeDejaDecouvert.nom}.`);
+                        setIsError(true);
+                    } else {
+                        setMessage(`Aucun employé trouvé avec le nom "${recherche}".`);
+                        setIsError(true);
+                    }
+                    
+                    setRecherche("");
+                    
+                    // Restaurer la position de défilement après le rendu
+                    setTimeout(function() {
+                        window.scrollTo(0, scrollPositionRef.current);
+                    }, 0);
+                    
+                    return;
+                }
+                
+                // Correspondance exacte trouvée
+                let pointsGagnes = 10; // Par défaut, 10 points sans indices
+                
+                // Calculer les points en fonction des indices utilisés
+                if (indicesActives.communaute && indicesActives.role && indicesActives.initiales) {
+                    pointsGagnes = 1; // 1 point avec tous les indices
+                } else if ((indicesActives.communaute && indicesActives.role) || 
+                        (indicesActives.communaute && indicesActives.initiales) || 
+                        (indicesActives.role && indicesActives.initiales)) {
+                    pointsGagnes = 3; // 3 points avec deux indices
+                } else if (indicesActives.communaute || indicesActives.role || indicesActives.initiales) {
+                    pointsGagnes = 5; // 5 points avec un seul indice
+                }
+                
+                setStats(function(prev) { 
+                    return { 
+                        ...prev, 
+                        decouverts: prev.decouverts + 1,
+                        score: prev.score + pointsGagnes
+                    };
+                });
+                
+                // Mettre à jour l'employé comme découvert
+                setEmployes(function(prev) {
+                    return prev.map(function(e) {
+                        return e.id === employeExact.id ? { ...e, decouvert: true } : e;
+                    });
+                });
+                
+                setMessage(`Bravo ! Vous avez trouvé ${employeExact.prenom} ${employeExact.nom}. +${pointsGagnes} points !`);
+                setIsError(false);
+                setRecherche("");
+                
+                // Restaurer la position de défilement après le rendu
+                setTimeout(function() {
+                    window.scrollTo(0, scrollPositionRef.current);
+                }, 0);
+            }
+
+            // Activer/désactiver les indices
+            function toggleIndice(indice) {
+                if (!jeuCommence || jeuTermine) return;
+                
+                setIndicesActives(function(prev) {
+                    const newState = { ...prev };
+                    newState[indice] = !prev[indice];
+                    return newState;
+                });
+            }
+
+            // Réinitialiser le jeu
+            function reinitialiser() {
+                if (timerRef.current) {
+                    clearInterval(timerRef.current);
+                }
+                
+                setEmployes(employes.map(function(e) { return { ...e, decouvert: false }; }));
+                setStats({ total: employes.length, decouverts: 0, score: 0 });
+                setIndicesActives({ communaute: false, role: false, initiales: false });
+                setJeuCommence(false);
+                setJeuTermine(false);
+                setTempsRestant(3600);
+                setMessage("Jeu réinitialisé ! Cliquez sur 'Commencer' pour démarrer une nouvelle partie.");
+                setIsError(false);
+            }
+
+            // Modifier le seuil de similarité
+            function changerSeuilSimilarite(e) {
+                setSeuilSimilarite(parseFloat(e.target.value));
+            }
+
+            // Fonction pour exporter les données en CSV
+            function exporterCSV() {
+                const header = "employee_id,first_name,last_name,original_start_date,community,role,first_initial,last_initial\n";
+                const lignes = employes.map(function(e) {
+                    return `${e.id},${e.prenom},${e.nom},${e.dateDebut},${e.communaute},${e.role},${e.initialePrenom},${e.initialeNom}`;
+                }).join("\n");
+                
+                const contenu = header + lignes;
+                
+                const blob = new Blob([contenu], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "100_premiers_alaniens.csv";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            // Si le joueur n'a pas encore saisi son email
+            if (!isPlaying) {
+                return React.createElement(
+                    "div",
+                    { className: "container" },
+                    [
+                        React.createElement("h1", null, "Jeu des 100 premiers Alaniens"),
+                        React.createElement("p", null, "Entrez votre email pour jouer et voir le classement"),
+                        
+                        // Affichage du leaderboard même sans connexion
+                        React.createElement(
+                            "div",
+                            null,
+                            [
+                                React.createElement("h2", null, "Classement actuel"),
+                                isLoading 
+                                    ? React.createElement("p", null, "Chargement du classement...")
+                                    : React.createElement(
+                                        "table",
+                                        null,
+                                        [
+                                            // En-tête du tableau
+                                            React.createElement(
+                                                "thead",
+                                                null,
+                                                React.createElement(
+                                                    "tr",
+                                                    null,
+                                                    [
+                                                        React.createElement("th", null, "Rang"),
+                                                        React.createElement("th", null, "Joueur"),
+                                                        React.createElement("th", null, "Score"),
+                                                        React.createElement("th", null, "Découverts")
+                                                    ]
+                                                )
+                                            ),
+                                            
+                                            // Corps du tableau
+                                            React.createElement(
+                                                "tbody",
+                                                null,
+                                                leaderboard.length > 0 ? 
+                                                    leaderboard.map((entry, index) => 
+                                                        React.createElement(
+                                                            "tr",
+                                                            { key: entry.id },
+                                                            [
+                                                                React.createElement("td", null, "#" + (index + 1)),
+                                                                React.createElement("td", null, entry.email ? entry.email.split('@')[0] : "Anonyme"),
+                                                                React.createElement("td", null, entry.score),
+                                                                React.createElement("td", null, `${entry.discovered || 0}/${entry.total || 100}`)
+                                                            ]
+                                                        )
+                                                    ) :
+                                                    React.createElement(
+                                                        "tr",
+                                                        null,
+                                                        React.createElement(
+                                                            "td",
+                                                            { colSpan: 4, style: { textAlign: "center" } },
+                                                            "Aucun score enregistré pour le moment"
+                                                        )
+                                                    )
+                                            )
+                                        ]
+                                    )
+                            ]
+                        ),
+                        
+                        // Formulaire d'email
+                        React.createElement(
+                            "form",
+                            { 
+                                onSubmit: handleStartPlaying,
+                                style: { marginTop: "20px", borderTop: "1px solid #ddd", paddingTop: "20px" }
+                            },
+                            [
+                                // Email
+                                React.createElement(
+                                    "div",
+                                    { className: "form-group" },
+                                    [
+                                        React.createElement("label", null, "Votre email:"),
+                                        React.createElement("input", {
+                                            type: "email",
+                                            value: playerEmail,
+                                            onChange: (e) => setPlayerEmail(e.target.value),
+                                            placeholder: "exemple@alan.eu",
+                                            required: true
+                                        })
+                                    ]
+                                ),
+                                
+                                // Bouton de soumission
+                                React.createElement(
+                                    "button",
+                                    { type: "submit" },
+                                    "Commencer à jouer"
+                                )
+                            ]
+                        ),
+                        
+                        // Message d'erreur ou de succès
+                        message && React.createElement(
+                            "div",
+                            { className: `message ${isError ? "error" : "success"}` },
+                            message
+                        )
+                    ]
+                );
+            }
+
+            // Afficher un message de chargement si les données ne sont pas encore chargées
+            if (!employesCharges) {
+                return React.createElement(
+                    "div", 
+                    { className: "container" },
+                    React.createElement(
+                        "div", 
+                        { style: { textAlign: "center", padding: "50px" } },
+                        "Chargement des données..."
+                    )
+                );
+            }
+
+            // Interface principale du jeu
             return React.createElement(
                 "div",
                 { className: "container" },
                 [
-                    React.createElement("h1", {}, "Jeu des 100 premiers Alaniens"),
-                    
-                    // Formulaire d'email
-                    React.createElement("div", {}, [
-                        React.createElement("label", {}, "Votre email:"),
-                        React.createElement("input", {
-                            type: "email",
-                            value: email,
-                            onChange: (e) => setEmail(e.target.value),
-                            placeholder: "exemple@alan.eu"
-                        })
-                    ]),
-                    
-                    // Boutons
-                    React.createElement("div", { style: { marginTop: "16px" } }, [
-                        React.createElement("button", { onClick: addTestScore }, "Ajouter un score de test"),
-                        React.createElement("button", { onClick: loadLeaderboard }, "Actualiser le classement")
-                    ]),
-                    
-                    // Message
-                    message && React.createElement(
-                        "div",
-                        { className: `message ${isError ? "error" : "success"}` },
-                        message
+                    // Titre
+                    React.createElement(
+                        "h1",
+                        { style: { textAlign: "center", marginBottom: "20px" } },
+                        "Les 100 premiers Alaniens"
                     ),
                     
-                    // Leaderboard
-                    React.createElement("h2", {}, "Classement"),
-                    isLoading 
-                        ? React.createElement("p", {}, "Chargement du classement...")
-                        : React.createElement(
-                            "table",
-                            {},
-                            [
-                                React.createElement(
-                                    "thead",
-                                    {},
-                                    React.createElement("tr", {}, [
-                                        React.createElement("th", {}, "Rang"),
-                                        React.createElement("th", {}, "Joueur"),
-                                        React.createElement("th", {}, "Score"),
-                                        React.createElement("th", {}, "Découverts")
+                    // Instructions
+                    React.createElement(
+                        "div",
+                        { style: { backgroundColor: "#f0f9ff", padding: "15px", borderRadius: "8px", marginBottom: "20px" } },
+                        [
+                            React.createElement(
+                                "h2",
+                                { style: { fontSize: "1.25rem", marginBottom: "10px" } },
+                                "Comment jouer :"
+                            ),
+                            React.createElement(
+                                "ol",
+                                { style: { paddingLeft: "20px" } },
+                                [
+                                    React.createElement("li", null, "Devinez le nom de famille d'un des 100 premiers employés d'Alan"),
+                                    React.createElement("li", null, [
+                                        React.createElement("strong", null, "10 points"),
+                                        " par nom trouvé sans indice"
+                                    ]),
+                                    React.createElement("li", null, [
+                                        "Utilisez les boutons d'indices pour vous aider :",
+                                        React.createElement(
+                                            "ul",
+                                            { style: { paddingLeft: "20px", marginTop: "5px" } },
+                                            [
+                                                React.createElement("li", null, [
+                                                    "Avec 1 indice : ",
+                                                    React.createElement("strong", null, "5 points"),
+                                                    " par nom trouvé"
+                                                ]),
+                                                React.createElement("li", null, [
+                                                    "Avec 2 indices : ",
+                                                    React.createElement("strong", null, "3 points"),
+                                                    " par nom trouvé"
+                                                ]),
+                                                React.createElement("li", null, [
+                                                    "Avec 3 indices : ",
+                                                    React.createElement("strong", null, "1 point"),
+                                                    " par nom trouvé"
+                                                ])
+                                            ]
+                                        )
+                                    ]),
+                                    React.createElement("li", null, "Les orthographes approximatives sont acceptées"),
+                                    React.createElement("li", null, [
+                                        "Vous avez ",
+                                        React.createElement("strong", null, "1 heure"),
+                                        " pour trouver un maximum de noms !"
                                     ])
-                                ),
+                                ]
+                            ),
+                            
+                            !jeuCommence && !jeuTermine ? React.createElement(
+                                "div",
+                                { style: { textAlign: "center", marginTop: "15px" } },
                                 React.createElement(
-                                    "tbody",
-                                    {},
-                                    leaderboard.length > 0
-                                        ? leaderboard.map((entry, index) => 
-                                            React.createElement("tr", { key: entry.id }, [
-                                                React.createElement("td", {}, "#" + (index + 1)),
-                                                React.createElement("td", {}, entry.email ? entry.email.split("@")[0] : "Anonyme"),
-                                                React.createElement("td", {}, entry.score),
-                                                React.createElement("td", {}, `${entry.discovered || 0}/${entry.total || 100}`)
-                                            ])
-                                        )
-                                        : React.createElement("tr", {}, 
-                                            React.createElement("td", { colSpan: 4, style: { textAlign: "center" } }, 
-                                                "Aucun score enregistré pour le moment"
-                                            )
-                                        )
+                                    "button",
+                                    { onClick: commencerJeu },
+                                    "Commencer"
                                 )
-                            ]
-                        )
+                            ) : null
+                        ]
+                    ),
+                    
+                    // Timer
+                    React.createElement(
+                        "div",
+                        { 
+                            className: `timer ${tempsRestant < 300 ? "ending" : ""}`,
+                        },
+                        [
+                            React.createElement(
+                                "div",
+                                null,
+                                formaterTemps(tempsRestant)
+                            ),
+                            
+                            jeuCommence ? React.createElement(
+                                "div",
+                                { style: { fontSize: "14px" } },
+                                jeuTermine ? "Temps écoulé !" : "Temps restant"
+                            ) : null
+                        ]
+                    ),
+                    
+                    // Formulaire de recherche
+                    React.createElement(
+                        "div",
+                        { className: "sticky-search" },
+                        [
+                            React.createElement(
+                                "form",
+                                { onSubmit: verifierNom },
+                                [
+                                    React.createElement(
+                                        "div",
+                                        { style: { display: "flex", gap: "10px" } },
+                                        [
+                                            React.createElement(
+                                                "input",
+                                                {
+                                                    type: "text",
+                                                    value: recherche,
+                                                    onChange: (e) => setRecherche(e.target.value),
+                                                    placeholder: "Entrez un nom de famille...",
+                                                    disabled: !jeuCommence || jeuTermine,
+                                                    style: { 
+                                                        flex: "1",
+                                                        opacity: (!jeuCommence || jeuTermine) ? 0.7 : 1
+                                                    }
+                                                }
+                                            ),
+                                            React.createElement(
+                                                "button",
+                                                {
+                                                    type: "submit",
+                                                    disabled: !jeuCommence || jeuTermine,
+                                                    style: {
+                                                        opacity: (!jeuCommence || jeuTermine) ? 0.7 : 1
+                                                    }
+                                                },
+                                                "Vérifier"
+                                            )
+                                        ]
+                                    )
+                                ]
+                            ),
+                            
+                            // Message
+                            message && React.createElement(
+                                "div",
+                                { className: `message ${isError ? "error" : "success"}` },
+                                message
+                            )
+                        ]
+                    ),
+                    
+                    // Statistiques et contrôles
+                    React.createElement(
+                        "div",
+                        {
+                            style: {
+                                backgroundColor: "#f9fafb",
+                                padding: "15px",
+                                borderRadius: "8px",
+                                marginBottom: "20px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "15px"
+                            }
+                        },
+                        [
+                            // Statistiques
+                            React.createElement(
+                                "div",
+                                null,
+                                [
+                                    React.createElement(
+                                        "div",
+                                        null,
+                                        `Progrès : ${stats.decouverts} / ${stats.total} employés découverts`
+                                    ),
+                                    React.createElement(
+                                        "div",
+                                        { style: { fontSize: "18px", fontWeight: "bold" } },
+                                        `Score : ${stats.score} points`
+                                    )
+                                ]
+                            ),
+                            
+                            // Classement
+                            React.createElement(
+                                "div",
+                                null,
+                                [
+                                    React.createElement(
+                                        "h3",
+                                        { style: { marginBottom: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" } },
+                                        [
+                                            "Classement",
+                                            React.createElement(
+                                                "button",
+                                                { onClick: loadLeaderboard, style: { padding: "5px 10px", fontSize: "14px" } },
+                                                "Actualiser"
+                                            )
+                                        ]
+                                    ),
+                                    React.createElement(
+                                        "table",
+                                        null,
+                                        [
+                                            // En-tête du tableau
+                                            React.createElement(
+                                                "thead",
+                                                null,
+                                                React.createElement(
+                                                    "tr",
+                                                    null,
+                                                    [
+                                                        React.createElement("th", null, "Rang"),
+                                                        React.createElement("th", null, "Joueur"),
+                                                        React.createElement("th", { style: { textAlign: "right" } }, "Score"),
+                                                        React.createElement("th", { style: { textAlign: "right" } }, "Découverts")
+                                                    ]
+                                                )
+                                            ),
+                                            
+                                            // Corps du tableau
+                                            React.createElement(
+                                                "tbody",
+                                                null,
+                                                leaderboard.length > 0 ? 
+                                                    leaderboard.map((entry, index) => 
+                                                        React.createElement(
+                                                            "tr",
+                                                            {
+                                                                key: entry.id,
+                                                                className: entry.email === playerEmail ? "highlight" : ""
+                                                            },
+                                                            [
+                                                                React.createElement("td", null, "#" + (index + 1)),
+                                                                React.createElement("td", null, entry.email.split('@')[0]),
+                                                                React.createElement("td", { style: { textAlign: "right", fontWeight: "bold" } }, entry.score),
+                                                                React.createElement("td", { style: { textAlign: "right" } }, `${entry.discovered || 0}/${entry.total || 100}`)
+                                                            ]
+                                                        )
+                                                    ) :
+                                                    React.createElement(
+                                                        "tr",
+                                                        null,
+                                                        React.createElement(
+                                                            "td",
+                                                            { colSpan: 4, style: { textAlign: "center" } },
+                                                            "Aucun score enregistré pour le moment"
+                                                        )
+                                                    )
+                                            )
+                                        ]
+                                    )
+                                ]
+                            ),
+                            
+                            // Boutons d'indices
+                            React.createElement(
+                                "div",
+                                { style: { display: "flex", flexWrap: "wrap", gap: "10px" } },
+                                [
+                                    // Indice : Communauté
+                                    React.createElement(
+                                        "button",
+                                        {
+                                            onClick: () => toggleIndice('communaute'),
+                                            disabled: !jeuCommence || jeuTermine,
+                                            className: indicesActives.communaute ? "hint-button active" : "hint-button",
+                                            style: {
+                                                opacity: (!jeuCommence || jeuTermine) ? 0.7 : 1
+                                            }
+                                        },
+                                        indicesActives.communaute ? 'Masquer communauté' : 'Indice : Communauté'
+                                    ),
+                                    
+                                    // Indice : Rôle
+                                    React.createElement(
+                                        "button",
+                                        {
+                                            onClick: () => toggleIndice('role'),
+                                            disabled: !jeuCommence || jeuTermine,
+                                            className: indicesActives.role ? "hint-button active" : "hint-button",
+                                            style: {
+                                                opacity: (!jeuCommence || jeuTermine) ? 0.7 : 1
+                                            }
+                                        },
+                                        indicesActives.role ? 'Masquer rôle' : 'Indice : Rôle'
+                                    ),
+                                    
+                                    // Indice : Initiales
+                                    React.createElement(
+                                        "button",
+                                        {
+                                            onClick: () => toggleIndice('initiales'),
+                                            disabled: !jeuCommence || jeuTermine,
+                                            className: indicesActives.initiales ? "hint-button active" : "hint-button",
+                                            style: {
+                                                opacity: (!jeuCommence || jeuTermine) ? 0.7 : 1
+                                            }
+                                        },
+                                        indicesActives.initiales ? 'Masquer initiales' : 'Indice : Initiales'
+                                    )
+                                ]
+                            ),
+                            
+                            // Contrôles (boutons)
+                            React.createElement(
+                                "div",
+                                { style: { display: "flex", flexWrap: "wrap", gap: "10px" } },
+                                [
+                                    // Bouton réinitialiser/recommencer
+                                    React.createElement(
+                                        "button",
+                                        { onClick: reinitialiser },
+                                        jeuTermine ? "Recommencer" : "Réinitialiser"
+                                    ),
+                                    
+                                    // Bouton exporter CSV
+                                    React.createElement(
+                                        "button",
+                                        { 
+                                            onClick: exporterCSV,
+                                            style: { backgroundColor: "#22c55e" }
+                                        },
+                                        "Exporter CSV"
+                                    ),
+                                    
+                                    // Bouton changer d'email
+                                    React.createElement(
+                                        "button",
+                                        { 
+                                            onClick: () => {
+                                                if (jeuCommence && !jeuTermine) {
+                                                    if (window.confirm("Êtes-vous sûr de vouloir quitter la partie en cours ?")) {
+                                                        setIsPlaying(false);
+                                                        setJeuCommence(false);
+                                                        if (timerRef.current) {
+                                                            clearInterval(timerRef.current);
+                                                        }
+                                                    }
+                                                } else {
+                                                    setIsPlaying(false);
+                                                }
+                                            },
+                                            style: { backgroundColor: "#ef4444" }
+                                        },
+                                        "Changer d'email"
+                                    )
+                                ]
+                            )
+                        ]
+                    ),
+                    
+                    // Réglage de la sensibilité
+                    React.createElement(
+                        "div",
+                        {
+                            style: {
+                                backgroundColor: "#f0f9ff",
+                                padding: "15px",
+                                borderRadius: "8px",
+                                marginBottom: "20px"
+                            }
+                        },
+                        [
+                            React.createElement(
+                                "div",
+                                { style: { fontWeight: "500", marginBottom: "10px" } },
+                                `Sensibilité de correspondance : ${Math.round(seuilSimilarite * 100)}%`
+                            ),
+                            React.createElement(
+                                "input",
+                                {
+                                    type: "range",
+                                    min: "0.5",
+                                    max: "0.95",
+                                    step: "0.05",
+                                    value: seuilSimilarite,
+                                    onChange: changerSeuilSimilarite,
+                                    className: "sensitivity-slider"
+                                }
+                            ),
+                            React.createElement(
+                                "div",
+                                { style: { display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#6b7280" } },
+                                [
+                                    React.createElement("span", null, "Plus flexible"),
+                                    React.createElement("span", null, "Plus strict")
+                                ]
+                            )
+                        ]
+                    ),
+                    
+                    // Liste des employés
+                    React.createElement(
+                        "div",
+                        { className: "employee-list" },
+                        [
+                            // Titre
+                            React.createElement(
+                                "div",
+                                { className: "employee-list-header" },
+                                `Liste des employés (${employes.length})`
+                            ),
+                            
+                            // Tableau des employés
+                            React.createElement(
+                                "table",
+                                { className: "employee-table" },
+                                [
+                                    // En-tête du tableau
+                                    React.createElement(
+                                        "thead",
+                                        null,
+                                        React.createElement(
+                                            "tr",
+                                            null,
+                                            [
+                                                React.createElement("th", null, "ID"),
+                                                React.createElement("th", null, "Date début"),
+                                                indicesActives.communaute && React.createElement("th", null, "Communauté"),
+                                                indicesActives.role && React.createElement("th", null, "Rôle"),
+                                                indicesActives.initiales && React.createElement("th", null, "Initiales"),
+                                                React.createElement("th", null, "Nom complet")
+                                            ].filter(Boolean) // Filtre les éléments null
+                                        )
+                                    ),
+                                    
+                                    // Corps du tableau
+                                    React.createElement(
+                                        "tbody",
+                                        null,
+                                        employes.map(function(employe, idx) {
+                                            return React.createElement(
+                                                "tr",
+                                                { key: employe.id },
+                                                [
+                                                    React.createElement("td", null, employe.id),
+                                                    React.createElement("td", null, employe.dateDebut),
+                                                    indicesActives.communaute && React.createElement("td", null, employe.communaute),
+                                                    indicesActives.role && React.createElement("td", null, employe.role),
+                                                    indicesActives.initiales && React.createElement(
+                                                        "td",
+                                                        null,
+                                                        `${employe.initialePrenom}. ${employe.initialeNom}.`
+                                                    ),
+                                                    React.createElement(
+                                                        "td",
+                                                        null,
+                                                        employe.decouvert 
+                                                            ? React.createElement("span", { style: { fontWeight: "500" } }, `${employe.prenom} ${employe.nom}`)
+                                                            : React.createElement("span", { className: "hidden-name" }, "● ●")
+                                                    )
+                                                ].filter(Boolean) // Filtre les éléments null
+                                            );
+                                        })
+                                    )
+                                ]
+                            )
+                        ]
+                    ),
+                    
+                    // Message de fin de jeu
+                    jeuTermine && React.createElement(
+                        "div",
+                        { className: "game-over" },
+                        [
+                            React.createElement("h2", null, "Temps écoulé !"),
+                            React.createElement(
+                                "p",
+                                null,
+                                [
+                                    "Vous avez trouvé ",
+                                    React.createElement("strong", null, stats.decouverts),
+                                    ` employés sur ${stats.total} et marqué `,
+                                    React.createElement("strong", null, stats.score),
+                                    " points."
+                                ]
+                            ),
+                            React.createElement(
+                                "p",
+                                { style: { fontStyle: "italic", margin: "10px 0" } },
+                                "Toutes les réponses ont été révélées. Vous pouvez explorer la liste complète."
+                            ),
+                            React.createElement(
+                                "button",
+                                { onClick: reinitialiser },
+                                "Rejouer"
+                            )
+                        ]
+                    )
                 ]
             );
         }
 
-        // Rendre le composant
-        ReactDOM.render(React.createElement(App), document.getElementById("root"));
+        // Rendu de l'application
+        ReactDOM.render(React.createElement(App), document.getElementById('root'));
     </script>
 </body>
 </html>
