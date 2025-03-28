@@ -3,84 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jeu des 100 premiers Alaniens - Connexion simplifiée</title>
+    <title>Jeu des 100 premiers Alaniens - Version Simple</title>
 
-    <!-- React (version développement) -->
+    <!-- React -->
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
 
     <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
     <style>
         body {
             font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
             max-width: 800px;
             margin: 0 auto;
-            padding: 20px;
         }
         .container {
-            background-color: #f5f5f5;
+            background-color: #f9fafb;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        h1, h2 {
-            color: #333;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-        }
-        input {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         button {
-            background-color: #4285f4;
+            background-color: #3b82f6;
             color: white;
             border: none;
-            padding: 10px 15px;
+            padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
-            margin-right: 10px;
+            margin-right: 8px;
         }
-        .error {
-            color: #d32f2f;
-            margin-top: 10px;
-        }
-        .success {
-            color: #388e3c;
-            margin-top: 10px;
+        input {
+            padding: 8px;
+            margin: 8px 0;
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
+            margin-top: 16px;
         }
         th, td {
-            padding: 10px;
+            padding: 8px;
             text-align: left;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #e5e7eb;
         }
         th {
-            background-color: #f0f0f0;
-            font-weight: bold;
+            background-color: #f3f4f6;
         }
-        .highlight {
-            background-color: #e8f5e9;
+        .message {
+            margin: 16px 0;
+            padding: 8px;
+            border-radius: 4px;
         }
-        .test-score-form {
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #ddd;
+        .error {
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
+        .success {
+            background-color: #dcfce7;
+            color: #166534;
         }
     </style>
 </head>
@@ -88,7 +75,7 @@
     <div id="root"></div>
 
     <script>
-        // Initialisation de Firebase
+        // Initialisation de Firebase avec une structure simplifiée
         const firebaseConfig = {
             apiKey: "AIzaSyCrvRv5dxD4bwlVoMsX2BnKTzp58UdOg2g",
             authDomain: "first-100-alaners.firebaseapp.com",
@@ -99,414 +86,178 @@
             measurementId: "G-73746XWZ6C"
         };
 
-        // Initialisation de Firebase
-        try {
-            firebase.initializeApp(firebaseConfig);
-            console.log("Firebase initialisé avec succès");
-        } catch (error) {
-            console.error("Erreur d'initialisation Firebase:", error);
-        }
+        // Initialiser Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-        // Composant d'application
-        function SimpleLeaderboardApp() {
-            const { useState, useEffect } = React;
-            
-            // États
-            const [email, setEmail] = useState("");
-            const [isLoggedIn, setIsLoggedIn] = useState(false);
-            const [message, setMessage] = useState("");
-            const [isError, setIsError] = useState(false);
-            const [leaderboard, setLeaderboard] = useState([]);
-            const [testScore, setTestScore] = useState(0);
-            const [testDiscovered, setTestDiscovered] = useState(0);
-            const [testTotal, setTestTotal] = useState(100);
-            const [playerEmail, setPlayerEmail] = useState("");
+        // Composant simple
+        function App() {
+            const [email, setEmail] = React.useState("");
+            const [message, setMessage] = React.useState("");
+            const [isError, setIsError] = React.useState(false);
+            const [leaderboard, setLeaderboard] = React.useState([]);
+            const [isLoading, setIsLoading] = React.useState(true);
 
             // Charger le leaderboard au démarrage
-            useEffect(() => {
+            React.useEffect(() => {
                 loadLeaderboard();
             }, []);
 
             // Fonction pour charger le leaderboard
-            const loadLeaderboard = async () => {
-                try {
-                    console.log("Chargement du leaderboard...");
-                    const snapshot = await firebase.firestore()
-                        .collection('scores')
-                        .orderBy('score', 'desc')
-                        .limit(10)
-                        .get();
-                    
-                    const scores = [];
-                    snapshot.forEach(doc => {
-                        scores.push({
-                            id: doc.id,
-                            ...doc.data()
+            function loadLeaderboard() {
+                setIsLoading(true);
+                db.collection("scores")
+                    .orderBy("score", "desc")
+                    .limit(10)
+                    .get()
+                    .then((snapshot) => {
+                        const scores = [];
+                        snapshot.forEach((doc) => {
+                            scores.push({
+                                id: doc.id,
+                                ...doc.data()
+                            });
                         });
+                        setLeaderboard(scores);
+                        setIsLoading(false);
+                        setMessage("Classement chargé avec succès");
+                        setIsError(false);
+                    })
+                    .catch((error) => {
+                        console.error("Erreur lors du chargement du classement:", error);
+                        setMessage("Erreur lors du chargement du classement: " + error.message);
+                        setIsError(true);
+                        setIsLoading(false);
                     });
-                    
-                    console.log("Leaderboard chargé:", scores);
-                    setLeaderboard(scores);
-                } catch (error) {
-                    console.error("Erreur chargement leaderboard:", error);
-                    setMessage("Erreur de chargement du classement: " + error.message);
-                    setIsError(true);
-                }
-            };
+            }
 
-            // Fonction pour "se connecter" simplement avec un email
-            const handleLogin = (e) => {
-                e.preventDefault();
-                if (!email || !email.includes('@')) {
-                    setMessage("Veuillez saisir une adresse email valide");
+            // Fonction pour ajouter un score de test
+            function addTestScore() {
+                if (!email || !email.includes("@")) {
+                    setMessage("Veuillez entrer une adresse email valide");
                     setIsError(true);
                     return;
                 }
-                
-                setPlayerEmail(email);
-                setIsLoggedIn(true);
-                setMessage(`Bienvenue, ${email.split('@')[0]}!`);
-                setIsError(false);
-                loadLeaderboard();
-            };
 
-            // Fonction pour sauvegarder un score
-            const saveTestScore = async (e) => {
-                e.preventDefault();
-                if (!playerEmail) return;
-                
-                try {
-                    console.log("Sauvegarde d'un score...");
-                    // Générer un ID unique basé sur l'email
-                    const emailHash = playerEmail.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                    
-                    // Vérifier si le joueur a déjà un score
-                    const userScoreRef = firebase.firestore()
-                        .collection('scores')
-                        .where('email', '==', playerEmail);
-                    
-                    const snapshot = await userScoreRef.get();
-                    
-                    if (snapshot.empty) {
-                        // Créer un nouveau score
-                        await firebase.firestore().collection('scores').add({
-                            userId: emailHash,
-                            email: playerEmail,
-                            score: parseInt(testScore),
-                            discovered: parseInt(testDiscovered),
-                            total: parseInt(testTotal),
-                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        setMessage("Score sauvegardé avec succès!");
-                    } else {
-                        // Mettre à jour le score existant
-                        const docId = snapshot.docs[0].id;
-                        const currentScore = snapshot.docs[0].data().score;
-                        
-                        if (parseInt(testScore) > currentScore) {
-                            await firebase.firestore().collection('scores').doc(docId).update({
-                                score: parseInt(testScore),
-                                discovered: parseInt(testDiscovered),
+                const score = Math.floor(Math.random() * 100);
+                const discovered = Math.floor(Math.random() * 50);
+
+                db.collection("scores")
+                    .where("email", "==", email)
+                    .get()
+                    .then((snapshot) => {
+                        if (snapshot.empty) {
+                            // Nouveau score
+                            return db.collection("scores").add({
+                                email: email,
+                                score: score,
+                                discovered: discovered,
+                                total: 100,
                                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
                             });
-                            setMessage("Score mis à jour avec succès!");
                         } else {
-                            setMessage("Le nouveau score n'est pas plus élevé que l'ancien.");
+                            // Mettre à jour le score existant si le nouveau est plus élevé
+                            const doc = snapshot.docs[0];
+                            const currentScore = doc.data().score;
+                            if (score > currentScore) {
+                                return db.collection("scores").doc(doc.id).update({
+                                    score: score,
+                                    discovered: discovered,
+                                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                                });
+                            } else {
+                                setMessage(`Score actuel (${currentScore}) plus élevé que le nouveau score (${score})`);
+                                setIsError(false);
+                                return Promise.resolve();
+                            }
                         }
-                    }
-                    
-                    setIsError(false);
-                    // Recharger le leaderboard
-                    loadLeaderboard();
-                } catch (error) {
-                    console.error("Erreur sauvegarde score:", error);
-                    setMessage("Erreur de sauvegarde du score: " + error.message);
-                    setIsError(true);
-                }
-            };
-
-            // Fonction pour se déconnecter
-            const handleLogout = () => {
-                setIsLoggedIn(false);
-                setPlayerEmail("");
-                setEmail("");
-                setMessage("");
-            };
-
-            // Affichage si l'utilisateur est "connecté"
-            if (isLoggedIn) {
-                return React.createElement(
-                    "div",
-                    { className: "container" },
-                    [
-                        React.createElement("h1", null, "Jeu des 100 premiers Alaniens"),
-                        React.createElement("p", null, `Joueur: ${playerEmail.split('@')[0]}`),
-                        React.createElement(
-                            "button",
-                            { onClick: loadLeaderboard, style: { marginRight: "10px" } },
-                            "Actualiser le classement"
-                        ),
-                        React.createElement(
-                            "button",
-                            { onClick: handleLogout },
-                            "Changer d'email"
-                        ),
-                        
-                        // Message d'erreur ou de succès
-                        message && React.createElement(
-                            "div",
-                            { className: isError ? "error" : "success" },
-                            message
-                        ),
-                        
-                        // Tableau du leaderboard
-                        React.createElement(
-                            "div",
-                            null,
-                            [
-                                React.createElement("h2", null, "Classement"),
-                                React.createElement(
-                                    "table",
-                                    null,
-                                    [
-                                        // En-tête du tableau
-                                        React.createElement(
-                                            "thead",
-                                            null,
-                                            React.createElement(
-                                                "tr",
-                                                null,
-                                                [
-                                                    React.createElement("th", null, "Rang"),
-                                                    React.createElement("th", null, "Joueur"),
-                                                    React.createElement("th", null, "Score"),
-                                                    React.createElement("th", null, "Découverts")
-                                                ]
-                                            )
-                                        ),
-                                        
-                                        // Corps du tableau
-                                        React.createElement(
-                                            "tbody",
-                                            null,
-                                            leaderboard.length > 0 ? 
-                                                leaderboard.map((entry, index) => 
-                                                    React.createElement(
-                                                        "tr",
-                                                        {
-                                                            key: entry.id,
-                                                            className: entry.email === playerEmail ? "highlight" : ""
-                                                        },
-                                                        [
-                                                            React.createElement("td", null, "#" + (index + 1)),
-                                                            React.createElement("td", null, entry.email.split('@')[0]),
-                                                            React.createElement("td", null, entry.score),
-                                                            React.createElement("td", null, `${entry.discovered || 0}/${entry.total || 100}`)
-                                                        ]
-                                                    )
-                                                ) :
-                                                React.createElement(
-                                                    "tr",
-                                                    null,
-                                                    React.createElement(
-                                                        "td",
-                                                        { colSpan: 4, style: { textAlign: "center" } },
-                                                        "Aucun score enregistré pour le moment"
-                                                    )
-                                                )
-                                        )
-                                    ]
-                                )
-                            ]
-                        ),
-                        
-                        // Formulaire pour tester l'ajout d'un score
-                        React.createElement(
-                            "div",
-                            { className: "test-score-form" },
-                            [
-                                React.createElement("h2", null, "Tester l'ajout d'un score"),
-                                React.createElement(
-                                    "form",
-                                    { onSubmit: saveTestScore },
-                                    [
-                                        // Score
-                                        React.createElement(
-                                            "div",
-                                            { className: "form-group" },
-                                            [
-                                                React.createElement("label", null, "Score:"),
-                                                React.createElement("input", {
-                                                    type: "number",
-                                                    value: testScore,
-                                                    onChange: (e) => setTestScore(e.target.value),
-                                                    min: 0,
-                                                    required: true
-                                                })
-                                            ]
-                                        ),
-                                        
-                                        // Nombre découvert
-                                        React.createElement(
-                                            "div",
-                                            { className: "form-group" },
-                                            [
-                                                React.createElement("label", null, "Nombres découverts:"),
-                                                React.createElement("input", {
-                                                    type: "number",
-                                                    value: testDiscovered,
-                                                    onChange: (e) => setTestDiscovered(e.target.value),
-                                                    min: 0,
-                                                    max: testTotal,
-                                                    required: true
-                                                })
-                                            ]
-                                        ),
-                                        
-                                        // Total
-                                        React.createElement(
-                                            "div",
-                                            { className: "form-group" },
-                                            [
-                                                React.createElement("label", null, "Total:"),
-                                                React.createElement("input", {
-                                                    type: "number",
-                                                    value: testTotal,
-                                                    onChange: (e) => setTestTotal(e.target.value),
-                                                    min: 1,
-                                                    required: true
-                                                })
-                                            ]
-                                        ),
-                                        
-                                        // Bouton de soumission
-                                        React.createElement(
-                                            "button",
-                                            { type: "submit" },
-                                            "Sauvegarder le score"
-                                        )
-                                    ]
-                                )
-                            ]
-                        )
-                    ]
-                );
+                    })
+                    .then(() => {
+                        setMessage(`Score de test (${score}) ajouté/mis à jour avec succès !`);
+                        setIsError(false);
+                        loadLeaderboard();
+                    })
+                    .catch((error) => {
+                        console.error("Erreur lors de l'ajout du score:", error);
+                        setMessage("Erreur lors de l'ajout du score: " + error.message);
+                        setIsError(true);
+                    });
             }
 
-            // Formulaire de saisie d'email simple
             return React.createElement(
                 "div",
                 { className: "container" },
                 [
-                    React.createElement("h1", null, "Jeu des 100 premiers Alaniens"),
-                    React.createElement("p", null, "Entrez votre email pour jouer et voir le classement"),
-                    
-                    // Affichage du leaderboard même sans connexion
-                    React.createElement(
-                        "div",
-                        null,
-                        [
-                            React.createElement("h2", null, "Classement actuel"),
-                            React.createElement(
-                                "table",
-                                null,
-                                [
-                                    // En-tête du tableau
-                                    React.createElement(
-                                        "thead",
-                                        null,
-                                        React.createElement(
-                                            "tr",
-                                            null,
-                                            [
-                                                React.createElement("th", null, "Rang"),
-                                                React.createElement("th", null, "Joueur"),
-                                                React.createElement("th", null, "Score"),
-                                                React.createElement("th", null, "Découverts")
-                                            ]
-                                        )
-                                    ),
-                                    
-                                    // Corps du tableau
-                                    React.createElement(
-                                        "tbody",
-                                        null,
-                                        leaderboard.length > 0 ? 
-                                            leaderboard.map((entry, index) => 
-                                                React.createElement(
-                                                    "tr",
-                                                    { key: entry.id },
-                                                    [
-                                                        React.createElement("td", null, "#" + (index + 1)),
-                                                        React.createElement("td", null, entry.email.split('@')[0]),
-                                                        React.createElement("td", null, entry.score),
-                                                        React.createElement("td", null, `${entry.discovered || 0}/${entry.total || 100}`)
-                                                    ]
-                                                )
-                                            ) :
-                                            React.createElement(
-                                                "tr",
-                                                null,
-                                                React.createElement(
-                                                    "td",
-                                                    { colSpan: 4, style: { textAlign: "center" } },
-                                                    "Aucun score enregistré pour le moment"
-                                                )
-                                            )
-                                    )
-                                ]
-                            )
-                        ]
-                    ),
+                    React.createElement("h1", {}, "Jeu des 100 premiers Alaniens"),
                     
                     // Formulaire d'email
-                    React.createElement(
-                        "form",
-                        { 
-                            onSubmit: handleLogin,
-                            style: { marginTop: "20px", borderTop: "1px solid #ddd", paddingTop: "20px" }
-                        },
-                        [
-                            // Email
-                            React.createElement(
-                                "div",
-                                { className: "form-group" },
-                                [
-                                    React.createElement("label", null, "Votre email:"),
-                                    React.createElement("input", {
-                                        type: "email",
-                                        value: email,
-                                        onChange: (e) => setEmail(e.target.value),
-                                        placeholder: "exemple@alan.eu",
-                                        required: true
-                                    })
-                                ]
-                            ),
-                            
-                            // Bouton de soumission
-                            React.createElement(
-                                "button",
-                                { type: "submit" },
-                                "Commencer à jouer"
-                            )
-                        ]
-                    ),
+                    React.createElement("div", {}, [
+                        React.createElement("label", {}, "Votre email:"),
+                        React.createElement("input", {
+                            type: "email",
+                            value: email,
+                            onChange: (e) => setEmail(e.target.value),
+                            placeholder: "exemple@alan.eu"
+                        })
+                    ]),
                     
-                    // Message d'erreur ou de succès
+                    // Boutons
+                    React.createElement("div", { style: { marginTop: "16px" } }, [
+                        React.createElement("button", { onClick: addTestScore }, "Ajouter un score de test"),
+                        React.createElement("button", { onClick: loadLeaderboard }, "Actualiser le classement")
+                    ]),
+                    
+                    // Message
                     message && React.createElement(
                         "div",
-                        { className: isError ? "error" : "success" },
+                        { className: `message ${isError ? "error" : "success"}` },
                         message
-                    )
+                    ),
+                    
+                    // Leaderboard
+                    React.createElement("h2", {}, "Classement"),
+                    isLoading 
+                        ? React.createElement("p", {}, "Chargement du classement...")
+                        : React.createElement(
+                            "table",
+                            {},
+                            [
+                                React.createElement(
+                                    "thead",
+                                    {},
+                                    React.createElement("tr", {}, [
+                                        React.createElement("th", {}, "Rang"),
+                                        React.createElement("th", {}, "Joueur"),
+                                        React.createElement("th", {}, "Score"),
+                                        React.createElement("th", {}, "Découverts")
+                                    ])
+                                ),
+                                React.createElement(
+                                    "tbody",
+                                    {},
+                                    leaderboard.length > 0
+                                        ? leaderboard.map((entry, index) => 
+                                            React.createElement("tr", { key: entry.id }, [
+                                                React.createElement("td", {}, "#" + (index + 1)),
+                                                React.createElement("td", {}, entry.email ? entry.email.split("@")[0] : "Anonyme"),
+                                                React.createElement("td", {}, entry.score),
+                                                React.createElement("td", {}, `${entry.discovered || 0}/${entry.total || 100}`)
+                                            ])
+                                        )
+                                        : React.createElement("tr", {}, 
+                                            React.createElement("td", { colSpan: 4, style: { textAlign: "center" } }, 
+                                                "Aucun score enregistré pour le moment"
+                                            )
+                                        )
+                                )
+                            ]
+                        )
                 ]
             );
         }
 
-        // Rendu du composant
-        ReactDOM.render(
-            React.createElement(SimpleLeaderboardApp),
-            document.getElementById('root')
-        );
+        // Rendre le composant
+        ReactDOM.render(React.createElement(App), document.getElementById("root"));
     </script>
 </body>
 </html>
