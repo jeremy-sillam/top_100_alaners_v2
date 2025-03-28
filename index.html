@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Les 100 premiers Alaniens - Version Simple</title>
+    <title>Les 100 premiers Alaniens</title>
 
     <!-- React -->
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
     <!-- PapaParse pour le traitement CSV -->
     <script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"></script>
@@ -124,12 +128,63 @@
             padding: 10px 0;
             z-index: 10;
         }
+        .login-container {
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .leaderboard-table th, .leaderboard-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .leaderboard-table th {
+            background-color: #f3f4f6;
+        }
+        .highlight-row {
+            background-color: #ecfdf5;
+        }
+        .start-button {
+            background-color: #22c55e;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 4px;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script>
+        // Initialisation de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCrvRv5dxD4bwlVoMsX2BnKTzp58UdOg2g",
+            authDomain: "first-100-alaners.firebaseapp.com",
+            projectId: "first-100-alaners",
+            storageBucket: "first-100-alaners.firebasestorage.app",
+            messagingSenderId: "996377669747",
+            appId: "1:996377669747:web:d27ab25e99d6c58278fa06",
+            measurementId: "G-73746XWZ6C"
+        };
+
+        // Initialiser Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         // Données complètes des employés
         const donneesBrutes = `employee_id,first_name,last_name,original_start_date,community,role,first_initial,last_initial
 0,Jean-Charles,Samuelian,"1 Jan, 2016",Co-founders,CEO,J,S
@@ -233,9 +288,17 @@
 255,Nicolas,Zermati,"26 Oct, 2020",Engineering,Software Engineer,N,Z
 164,Lea,Vaude,"3 Sep, 2024",Sales,Customer Success Manager,L,V`;
 
-        // Composant principal
+        // Application principale
         function App() {
             const { useState, useEffect, useRef } = React;
+            
+            // États pour l'écran de connexion
+            const [playerEmail, setPlayerEmail] = useState("");
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [leaderboard, setLeaderboard] = useState([]);
+            const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(true);
+            const [loginMessage, setLoginMessage] = useState("");
+            const [isLoginError, setIsLoginError] = useState(false);
             
             // États du jeu
             const [employes, setEmployes] = useState([]);
@@ -251,14 +314,88 @@
             });
             const [seuilSimilarite, setSeuilSimilarite] = useState(0.8);
             const [jeuCommence, setJeuCommence] = useState(false);
-            const [tempsRestant, setTempsRestant] = useState(1200); // 20 minutes en secondes (modifié)
+            const [tempsRestant, setTempsRestant] = useState(1200); // 20 minutes en secondes
             const [jeuTermine, setJeuTermine] = useState(false);
             const timerRef = useRef(null);
             const scrollPositionRef = useRef(0);
 
+            // Charger le leaderboard au démarrage
+            useEffect(() => {
+                loadLeaderboard();
+            }, []);
+
+            // Charger le leaderboard
+            function loadLeaderboard() {
+                setIsLoadingLeaderboard(true);
+                db.collection("scores")
+                    .orderBy("score", "desc")
+                    .limit(10)
+                    .get()
+                    .then((snapshot) => {
+                        const scores = [];
+                        snapshot.forEach((doc) => {
+                            scores.push({
+                                id: doc.id,
+                                ...doc.data()
+                            });
+                        });
+                        setLeaderboard(scores);
+                        setIsLoadingLeaderboard(false);
+                    })
+                    .catch((error) => {
+                        console.error("Erreur lors du chargement du classement:", error);
+                        setIsLoadingLeaderboard(false);
+                    });
+            }
+
+            // Fonction pour sauvegarder le score
+            function saveScore() {
+                if (!playerEmail) return;
+                
+                try {
+                    // Vérifier si le joueur a déjà un score
+                    db.collection("scores")
+                        .where("email", "==", playerEmail)
+                        .get()
+                        .then((snapshot) => {
+                            if (snapshot.empty) {
+                                // Créer un nouveau score
+                                return db.collection("scores").add({
+                                    email: playerEmail,
+                                    score: stats.score,
+                                    discovered: stats.decouverts,
+                                    total: stats.total,
+                                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                                });
+                            } else {
+                                // Mettre à jour le score existant si le nouveau est plus élevé
+                                const doc = snapshot.docs[0];
+                                const currentScore = doc.data().score;
+                                if (stats.score > currentScore) {
+                                    return db.collection("scores").doc(doc.id).update({
+                                        score: stats.score,
+                                        discovered: stats.decouverts,
+                                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                                    });
+                                } else {
+                                    return Promise.resolve();
+                                }
+                            }
+                        })
+                        .then(() => {
+                            loadLeaderboard();
+                        })
+                        .catch((error) => {
+                            console.error("Erreur sauvegarde score:", error);
+                        });
+                } catch (error) {
+                    console.error("Erreur lors de la sauvegarde du score:", error);
+                }
+            }
+
             // Charger les données des employés
             useEffect(() => {
-                if (!employesCharges) {
+                if (isPlaying && !employesCharges) {
                     Papa.parse(donneesBrutes, {
                         header: true,
                         skipEmptyLines: true,
@@ -290,7 +427,7 @@
                         }
                     });
                 }
-            }, [employesCharges]);
+            }, [isPlaying, employesCharges]);
 
             // Gestion du timer
             useEffect(() => {
@@ -308,6 +445,9 @@
                                     });
                                 });
                                 
+                                // Sauvegarder le score
+                                saveScore();
+                                
                                 return 0;
                             }
                             return prev - 1;
@@ -322,10 +462,22 @@
                 };
             }, [jeuCommence, jeuTermine]);
 
+            // Fonction pour commencer à jouer (après avoir entré l'email)
+            function handleStartPlaying(e) {
+                e.preventDefault();
+                if (!playerEmail || !playerEmail.includes('@')) {
+                    setLoginMessage("Veuillez saisir une adresse email valide");
+                    setIsLoginError(true);
+                    return;
+                }
+                
+                setIsPlaying(true);
+            }
+
             // Commencer le jeu
             function commencerJeu() {
                 setJeuCommence(true);
-                setTempsRestant(1200); // 20 minutes (modifié)
+                setTempsRestant(1200); // 20 minutes
                 setJeuTermine(false);
                 
                 // Réinitialiser les employés découverts
@@ -339,7 +491,7 @@
                     return { ...prev, decouverts: 0, score: 0 };
                 });
                 
-                setMessage("Le jeu a commencé! Vous avez 20 minutes pour trouver un maximum de noms."); // Modifié
+                setMessage("Le jeu a commencé! Vous avez 20 minutes pour trouver un maximum de noms.");
                 setIsError(false);
             }
 
@@ -576,6 +728,147 @@
                 setSeuilSimilarite(parseFloat(e.target.value));
             }
 
+            // Affichage de l'écran de connexion
+            if (!isPlaying) {
+                return React.createElement(
+                    "div",
+                    null,
+                    [
+                        // Titre principal
+                        React.createElement(
+                            "h1",
+                            { style: { textAlign: "center", marginBottom: "30px" } },
+                            "Les 100 premiers Alaniens"
+                        ),
+                        
+                        // Formulaire de connexion
+                        React.createElement(
+                            "div",
+                            { className: "login-container" },
+                            [
+                                React.createElement("h2", null, "Entrez votre email pour jouer"),
+                                
+                                React.createElement(
+                                    "form",
+                                    { onSubmit: handleStartPlaying },
+                                    [
+                                        React.createElement(
+                                            "div",
+                                            { style: { marginBottom: "15px" } },
+                                            [
+                                                React.createElement("label", { htmlFor: "email" }, "Votre email:"),
+                                                React.createElement("input", {
+                                                    id: "email",
+                                                    type: "email",
+                                                    value: playerEmail,
+                                                    onChange: (e) => setPlayerEmail(e.target.value),
+                                                    placeholder: "exemple@alan.eu",
+                                                    required: true
+                                                })
+                                            ]
+                                        ),
+                                        
+                                        loginMessage && React.createElement(
+                                            "div",
+                                            { 
+                                                className: isLoginError ? "error" : "success",
+                                                style: { marginBottom: "15px" }
+                                            },
+                                            loginMessage
+                                        ),
+                                        
+                                        React.createElement(
+                                            "button",
+                                            { 
+                                                type: "submit",
+                                                className: "start-button"
+                                            },
+                                            "Commencer à jouer"
+                                        )
+                                    ]
+                                )
+                            ]
+                        ),
+                        
+                        // Leaderboard
+                        React.createElement(
+                            "div",
+                            { className: "container", style: { marginTop: "30px" } },
+                            [
+                                React.createElement(
+                                    "h2",
+                                    { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+                                    [
+                                        "Classement",
+                                        React.createElement(
+                                            "button",
+                                            { 
+                                                onClick: loadLeaderboard,
+                                                style: { fontSize: "14px", padding: "5px 10px" }
+                                            },
+                                            "Actualiser"
+                                        )
+                                    ]
+                                ),
+                                
+                                isLoadingLeaderboard 
+                                    ? React.createElement("p", null, "Chargement du classement...")
+                                    : React.createElement(
+                                        "table",
+                                        { className: "leaderboard-table" },
+                                        [
+                                            React.createElement(
+                                                "thead",
+                                                null,
+                                                React.createElement(
+                                                    "tr",
+                                                    null,
+                                                    [
+                                                        React.createElement("th", null, "Rang"),
+                                                        React.createElement("th", null, "Joueur"),
+                                                        React.createElement("th", { style: { textAlign: "right" } }, "Score"),
+                                                        React.createElement("th", { style: { textAlign: "right" } }, "Découverts")
+                                                    ]
+                                                )
+                                            ),
+                                            
+                                            React.createElement(
+                                                "tbody",
+                                                null,
+                                                leaderboard.length > 0 
+                                                    ? leaderboard.map((entry, index) => 
+                                                        React.createElement(
+                                                            "tr",
+                                                            { 
+                                                                key: entry.id,
+                                                                className: entry.email === playerEmail ? "highlight-row" : ""
+                                                            },
+                                                            [
+                                                                React.createElement("td", null, `#${index + 1}`),
+                                                                React.createElement("td", null, entry.email ? entry.email.split('@')[0] : "Anonyme"),
+                                                                React.createElement("td", { style: { textAlign: "right", fontWeight: "bold" } }, entry.score),
+                                                                React.createElement("td", { style: { textAlign: "right" } }, `${entry.discovered || 0}/${entry.total || 100}`)
+                                                            ]
+                                                        )
+                                                    )
+                                                    : React.createElement(
+                                                        "tr",
+                                                        null,
+                                                        React.createElement(
+                                                            "td",
+                                                            { colSpan: 4, style: { textAlign: "center", padding: "15px" } },
+                                                            "Aucun score enregistré pour le moment"
+                                                        )
+                                                    )
+                                            )
+                                        ]
+                                    )
+                            ]
+                        )
+                    ]
+                );
+            }
+
             // Afficher un message de chargement si les données ne sont pas encore chargées
             if (!employesCharges) {
                 return React.createElement(
@@ -722,7 +1015,7 @@
                                                         opacity: (!jeuCommence || jeuTermine) ? 0.7 : 1
                                                     }
                                                 },
-                                                "Vérifier"
+                                                "V��rifier"
                                             )
                                         ]
                                     )
@@ -767,6 +1060,11 @@
                                         "div",
                                         { style: { fontSize: "18px", fontWeight: "bold" } },
                                         `Score : ${stats.score} points`
+                                    ),
+                                    React.createElement(
+                                        "div",
+                                        null,
+                                        `Joueur : ${playerEmail.split('@')[0]}`
                                     )
                                 ]
                             ),
@@ -820,34 +1118,40 @@
                                 ]
                             ),
                             
-                            // Bouton recommencer (uniquement visible quand le jeu est terminé)
-                            jeuTermine && React.createElement(
+                            // Bouton pour changer d'email (revenir à l'écran de connexion)
+                            React.createElement(
                                 "div",
-                                { style: { textAlign: "center", marginTop: "10px" } },
+                                { style: { textAlign: "center" } },
                                 React.createElement(
                                     "button",
-                                    { 
+                                    {
                                         onClick: () => {
-                                            if (timerRef.current) {
-                                                clearInterval(timerRef.current);
+                                            if (jeuCommence && !jeuTermine) {
+                                                if (window.confirm("Êtes-vous sûr de vouloir quitter ? Votre progression sera perdue.")) {
+                                                    // Nettoyer le timer
+                                                    if (timerRef.current) {
+                                                        clearInterval(timerRef.current);
+                                                    }
+                                                    
+                                                    // Réinitialiser l'état du jeu
+                                                    setIsPlaying(false);
+                                                    setJeuCommence(false);
+                                                    setJeuTermine(false);
+                                                    setEmployesCharges(false);
+                                                }
+                                            } else {
+                                                // Réinitialiser l'état du jeu
+                                                setIsPlaying(false);
+                                                setJeuCommence(false);
+                                                setJeuTermine(false);
+                                                setEmployesCharges(false);
                                             }
-                                            
-                                            setEmployes(employes.map(function(e) { return { ...e, decouvert: false }; }));
-                                            setStats({ total: employes.length, decouverts: 0, score: 0 });
-                                            setIndicesActives({ communaute: false, role: false, initiales: false });
-                                            setJeuCommence(false);
-                                            setJeuTermine(false);
-                                            setTempsRestant(1200);
-                                            setMessage("Jeu réinitialisé ! Cliquez sur 'Commencer' pour démarrer une nouvelle partie.");
-                                            setIsError(false);
                                         },
                                         style: {
-                                            backgroundColor: "#3b82f6",
-                                            padding: "10px 20px",
-                                            fontSize: "16px"
+                                            backgroundColor: "#ef4444"
                                         }
                                     },
-                                    "Recommencer"
+                                    "Changer d'email"
                                 )
                             )
                         ]
@@ -992,35 +1296,60 @@
                                 { style: { fontStyle: "italic", margin: "10px 0" } },
                                 "Toutes les réponses ont été révélées. Vous pouvez explorer la liste complète."
                             ),
+                            
+                            // Boutons d'actions après la fin du jeu
                             React.createElement(
-                                "button",
-                                { 
-                                    onClick: () => {
-                                        if (timerRef.current) {
-                                            clearInterval(timerRef.current);
-                                        }
-                                        
-                                        setEmployes(employes.map(function(e) { return { ...e, decouvert: false }; }));
-                                        setStats({ total: employes.length, decouverts: 0, score: 0 });
-                                        setIndicesActives({ communaute: false, role: false, initiales: false });
-                                        setJeuCommence(false);
-                                        setJeuTermine(false);
-                                        setTempsRestant(1200);
-                                        setMessage("Jeu réinitialisé ! Cliquez sur 'Commencer' pour démarrer une nouvelle partie.");
-                                        setIsError(false);
-                                    },
-                                    style: {
-                                        backgroundColor: "#3b82f6",
-                                        color: "white",
-                                        padding: "10px 20px",
-                                        borderRadius: "4px",
-                                        border: "none",
-                                        cursor: "pointer",
-                                        fontWeight: "bold",
-                                        marginTop: "10px"
-                                    }
-                                },
-                                "Rejouer"
+                                "div",
+                                { style: { display: "flex", justifyContent: "center", gap: "10px", marginTop: "15px" } },
+                                [
+                                    // Rejouer
+                                    React.createElement(
+                                        "button",
+                                        { 
+                                            onClick: () => {
+                                                if (timerRef.current) {
+                                                    clearInterval(timerRef.current);
+                                                }
+                                                
+                                                setEmployes(employes.map(function(e) { return { ...e, decouvert: false }; }));
+                                                setStats({ total: employes.length, decouverts: 0, score: 0 });
+                                                setIndicesActives({ communaute: false, role: false, initiales: false });
+                                                setJeuCommence(false);
+                                                setJeuTermine(false);
+                                                setTempsRestant(1200);
+                                                setMessage("Jeu réinitialisé ! Cliquez sur 'Commencer' pour démarrer une nouvelle partie.");
+                                                setIsError(false);
+                                            },
+                                            style: {
+                                                backgroundColor: "#3b82f6"
+                                            }
+                                        },
+                                        "Rejouer"
+                                    ),
+                                    
+                                    // Changer d'email
+                                    React.createElement(
+                                        "button",
+                                        {
+                                            onClick: () => {
+                                                // Réinitialiser l'état du jeu
+                                                setIsPlaying(false);
+                                                setJeuCommence(false);
+                                                setJeuTermine(false);
+                                                setEmployesCharges(false);
+                                                
+                                                // Nettoyer le timer
+                                                if (timerRef.current) {
+                                                    clearInterval(timerRef.current);
+                                                }
+                                            },
+                                            style: {
+                                                backgroundColor: "#ef4444"
+                                            }
+                                        },
+                                        "Changer d'email"
+                                    )
+                                ]
                             )
                         ]
                     )
