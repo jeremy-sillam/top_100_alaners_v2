@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Les 100 premiers Alaniens</title>
+    <title>First 100 Alaners</title>
 
     <!-- React -->
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
@@ -13,7 +13,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
-    <!-- PapaParse pour le traitement CSV -->
+    <!-- PapaParse for CSV processing -->
     <script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"></script>
 
     <style>
@@ -164,13 +164,26 @@
             width: 100%;
             margin-top: 20px;
         }
+        .finish-button {
+            background-color: #ef4444;
+            color: white;
+            padding: 10px 20px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .actions-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script>
-        // Initialisation de Firebase
+        // Firebase initialization
         const firebaseConfig = {
             apiKey: "AIzaSyCrvRv5dxD4bwlVoMsX2BnKTzp58UdOg2g",
             authDomain: "first-100-alaners.firebaseapp.com",
@@ -181,11 +194,11 @@
             measurementId: "G-73746XWZ6C"
         };
 
-        // Initialiser Firebase
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Données complètes des employés
+        // Complete employee data
         const donneesBrutes = `employee_id,first_name,last_name,original_start_date,community,role,first_initial,last_initial
 0,Jean-Charles,Samuelian,"1 Jan, 2016",Co-founders,CEO,J,S
 1,Charles,Gorintin,"1 Jan, 2016",Co-founders,CTO,C,G
@@ -288,11 +301,11 @@
 255,Nicolas,Zermati,"26 Oct, 2020",Engineering,Software Engineer,N,Z
 164,Lea,Vaude,"3 Sep, 2024",Sales,Customer Success Manager,L,V`;
 
-        // Application principale
+        // Main application
         function App() {
             const { useState, useEffect, useRef } = React;
             
-            // États pour l'écran de connexion
+            // States for login screen
             const [playerEmail, setPlayerEmail] = useState("");
             const [isPlaying, setIsPlaying] = useState(false);
             const [leaderboard, setLeaderboard] = useState([]);
@@ -300,7 +313,7 @@
             const [loginMessage, setLoginMessage] = useState("");
             const [isLoginError, setIsLoginError] = useState(false);
             
-            // États du jeu
+            // Game states
             const [employes, setEmployes] = useState([]);
             const [employesCharges, setEmployesCharges] = useState(false);
             const [recherche, setRecherche] = useState("");
@@ -314,17 +327,17 @@
             });
             const [seuilSimilarite, setSeuilSimilarite] = useState(0.8);
             const [jeuCommence, setJeuCommence] = useState(false);
-            const [tempsRestant, setTempsRestant] = useState(1200); // 20 minutes en secondes
+            const [tempsRestant, setTempsRestant] = useState(1200); // 20 minutes in seconds
             const [jeuTermine, setJeuTermine] = useState(false);
             const timerRef = useRef(null);
             const scrollPositionRef = useRef(0);
 
-            // Charger le leaderboard au démarrage
+            // Load leaderboard on startup
             useEffect(() => {
                 loadLeaderboard();
             }, []);
 
-            // Charger le leaderboard
+            // Load leaderboard
             function loadLeaderboard() {
                 setIsLoadingLeaderboard(true);
                 db.collection("scores")
@@ -343,23 +356,23 @@
                         setIsLoadingLeaderboard(false);
                     })
                     .catch((error) => {
-                        console.error("Erreur lors du chargement du classement:", error);
+                        console.error("Error loading leaderboard:", error);
                         setIsLoadingLeaderboard(false);
                     });
             }
 
-            // Fonction pour sauvegarder le score
+            // Function to save score
             function saveScore() {
                 if (!playerEmail) return;
                 
                 try {
-                    // Vérifier si le joueur a déjà un score
+                    // Check if player already has a score
                     db.collection("scores")
                         .where("email", "==", playerEmail)
                         .get()
                         .then((snapshot) => {
                             if (snapshot.empty) {
-                                // Créer un nouveau score
+                                // Create a new score
                                 return db.collection("scores").add({
                                     email: playerEmail,
                                     score: stats.score,
@@ -368,7 +381,7 @@
                                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                                 });
                             } else {
-                                // Mettre à jour le score existant si le nouveau est plus élevé
+                                // Update existing score if new score is higher
                                 const doc = snapshot.docs[0];
                                 const currentScore = doc.data().score;
                                 if (stats.score > currentScore) {
@@ -384,23 +397,55 @@
                         })
                         .then(() => {
                             loadLeaderboard();
+                            setMessage("Your score has been saved!");
+                            setIsError(false);
                         })
                         .catch((error) => {
-                            console.error("Erreur sauvegarde score:", error);
+                            console.error("Error saving score:", error);
+                            setMessage("Error saving your score. Please try again.");
+                            setIsError(true);
                         });
                 } catch (error) {
-                    console.error("Erreur lors de la sauvegarde du score:", error);
+                    console.error("Error saving score:", error);
+                    setMessage("Error saving your score. Please try again.");
+                    setIsError(true);
                 }
             }
 
-            // Charger les données des employés
+            // Finish game and save score
+            function finishGame() {
+                if (!jeuCommence || jeuTermine) return;
+                
+                // Confirm before finishing
+                if (window.confirm("Are you sure you want to finish the game and submit your score?")) {
+                    // Clear timer
+                    if (timerRef.current) {
+                        clearInterval(timerRef.current);
+                    }
+                    
+                    // Set game as finished
+                    setJeuTermine(true);
+                    
+                    // Reveal all answers
+                    setEmployes(function(prevEmployes) {
+                        return prevEmployes.map(function(employe) {
+                            return { ...employe, decouvert: true };
+                        });
+                    });
+                    
+                    // Save score
+                    saveScore();
+                }
+            }
+
+            // Load employee data
             useEffect(() => {
                 if (isPlaying && !employesCharges) {
                     Papa.parse(donneesBrutes, {
                         header: true,
                         skipEmptyLines: true,
                         complete: function(results) {
-                            // Transformer les données
+                            // Transform data
                             const donnees = results.data.map(function(employe) {
                                 return {
                                     id: employe.employee_id,
@@ -416,7 +461,7 @@
                                 };
                             });
                             
-                            // Trier les employés par ID
+                            // Sort employees by ID
                             donnees.sort(function(a, b) {
                                 return parseInt(a.id) - parseInt(b.id);
                             });
@@ -429,7 +474,7 @@
                 }
             }, [isPlaying, employesCharges]);
 
-            // Gestion du timer
+            // Timer management
             useEffect(() => {
                 if (jeuCommence && !jeuTermine) {
                     timerRef.current = setInterval(function() {
@@ -438,14 +483,14 @@
                                 clearInterval(timerRef.current);
                                 setJeuTermine(true);
                                 
-                                // Révéler toutes les réponses quand le temps est écoulé
+                                // Reveal all answers when time is up
                                 setEmployes(function(prevEmployes) {
                                     return prevEmployes.map(function(employe) {
                                         return { ...employe, decouvert: true };
                                     });
                                 });
                                 
-                                // Sauvegarder le score
+                                // Save score
                                 saveScore();
                                 
                                 return 0;
@@ -462,11 +507,11 @@
                 };
             }, [jeuCommence, jeuTermine]);
 
-            // Fonction pour commencer à jouer (après avoir entré l'email)
+            // Start playing (after entering email)
             function handleStartPlaying(e) {
                 e.preventDefault();
                 if (!playerEmail || !playerEmail.includes('@')) {
-                    setLoginMessage("Veuillez saisir une adresse email valide");
+                    setLoginMessage("Please enter a valid email address");
                     setIsLoginError(true);
                     return;
                 }
@@ -474,13 +519,13 @@
                 setIsPlaying(true);
             }
 
-            // Commencer le jeu
+            // Start game
             function commencerJeu() {
                 setJeuCommence(true);
                 setTempsRestant(1200); // 20 minutes
                 setJeuTermine(false);
                 
-                // Réinitialiser les employés découverts
+                // Reset discovered employees
                 setEmployes(function(prevEmployes) {
                     return prevEmployes.map(function(employe) {
                         return { ...employe, decouvert: false };
@@ -491,37 +536,37 @@
                     return { ...prev, decouverts: 0, score: 0 };
                 });
                 
-                setMessage("Le jeu a commencé! Vous avez 20 minutes pour trouver un maximum de noms.");
+                setMessage("Game started! You have 20 minutes to find as many names as possible.");
                 setIsError(false);
             }
 
-            // Formater le temps restant
+            // Format remaining time
             function formaterTemps(secondes) {
                 const minutes = Math.floor(secondes / 60);
                 const secondesRestantes = secondes % 60;
                 return `${minutes.toString().padStart(2, '0')}:${secondesRestantes.toString().padStart(2, '0')}`;
             }
 
-            // Fonction de calcul de la distance de Levenshtein (mesure de similarité entre deux chaînes)
+            // Calculate Levenshtein distance (similarity between two strings)
             function levenshteinDistance(a, b) {
                 const matrix = [];
                 
-                // Incrémente
+                // Increment
                 function increment(i, j) {
                     return matrix[i][j] + 1;
                 }
                 
-                // Insertion
+                // Insert
                 function insertion(i, j) {
                     return matrix[i][j - 1] + 1;
                 }
                 
-                // Substitution
+                // Substitute
                 function substitution(i, j) {
                     return matrix[i - 1][j - 1] + (a[i - 1] !== b[j - 1] ? 1 : 0);
                 }
                 
-                // Initialisation de la matrice
+                // Initialize matrix
                 for (let i = 0; i <= a.length; i++) {
                     matrix[i] = [i];
                 }
@@ -530,11 +575,11 @@
                     matrix[0][j] = j;
                 }
                 
-                // Remplissage de la matrice
+                // Fill matrix
                 for (let i = 1; i <= a.length; i++) {
                     for (let j = 1; j <= b.length; j++) {
                         matrix[i][j] = Math.min(
-                            increment(i - 1, j),     // suppression
+                            increment(i - 1, j),     // deletion
                             insertion(i, j),         // insertion
                             substitution(i, j)       // substitution
                         );
@@ -544,16 +589,16 @@
                 return matrix[a.length][b.length];
             }
 
-            // Calcule la similarité entre deux chaînes (entre 0 et 1)
+            // Calculate similarity between two strings (between 0 and 1)
             function calculateSimilarity(str1, str2) {
                 const maxLength = Math.max(str1.length, str2.length);
-                if (maxLength === 0) return 1.0; // Si les deux chaînes sont vides, elles sont identiques
+                if (maxLength === 0) return 1.0; // If both strings are empty, they're identical
                 
                 const distance = levenshteinDistance(str1, str2);
                 return 1.0 - distance / maxLength;
             }
 
-            // Trouver le meilleur match pour un nom recherché
+            // Find best match for a searched name
             function trouverMeilleurMatch(nomRecherche) {
                 let meilleurMatch = null;
                 let meilleureSimilarite = 0;
@@ -575,52 +620,52 @@
                 return { employe: meilleurMatch, similarite: meilleureSimilarite };
             }
 
-            // Gérer la soumission du formulaire de recherche
+            // Handle search form submission
             function verifierNom(e) {
                 e.preventDefault();
                 
-                // Sauvegarder la position de défilement actuelle
+                // Save current scroll position
                 scrollPositionRef.current = window.scrollY;
                 
                 if (!jeuCommence || jeuTermine) {
-                    setMessage(jeuTermine ? "Le temps est écoulé ! Toutes les réponses sont révélées." : "Cliquez sur 'Commencer' pour démarrer le jeu.");
+                    setMessage(jeuTermine ? "Time's up! All answers are revealed." : "Click 'Start' to begin the game.");
                     setIsError(true);
                     return;
                 }
                 
                 if (!recherche.trim()) {
-                    setMessage("Veuillez entrer un nom");
+                    setMessage("Please enter a name");
                     setIsError(true);
                     return;
                 }
                 
                 const nomRecherche = recherche.trim().toLowerCase();
                 
-                // Vérifier si le nom est exactement le même
+                // Check if name is exactly the same
                 const employeExact = employes.find(
                     function(e) { return e.nom.toLowerCase() === nomRecherche && !e.decouvert; }
                 );
                 
-                // Si pas de correspondance exacte, chercher le meilleur match
+                // If no exact match, look for best match
                 if (!employeExact) {
                     const { employe: meilleurMatch, similarite } = trouverMeilleurMatch(nomRecherche);
                     
                     if (meilleurMatch) {
-                        // Trouver un match approximatif
-                        let pointsGagnes = 10; // Par défaut, 10 points sans indices
+                        // Find approximate match
+                        let pointsGagnes = 10; // Default: 10 points without hints
                         
-                        // Calculer les points en fonction des indices utilisés
+                        // Calculate points based on hints used
                         if (indicesActives.communaute && indicesActives.role && indicesActives.initiales) {
-                            pointsGagnes = 1; // 1 point avec tous les indices
+                            pointsGagnes = 1; // 1 point with all hints
                         } else if ((indicesActives.communaute && indicesActives.role) || 
                                 (indicesActives.communaute && indicesActives.initiales) || 
                                 (indicesActives.role && indicesActives.initiales)) {
-                            pointsGagnes = 3; // 3 points avec deux indices
+                            pointsGagnes = 3; // 3 points with two hints
                         } else if (indicesActives.communaute || indicesActives.role || indicesActives.initiales) {
-                            pointsGagnes = 5; // 5 points avec un seul indice
+                            pointsGagnes = 5; // 5 points with one hint
                         }
                         
-                        // Réduire légèrement les points pour les correspondances approximatives
+                        // Slightly reduce points for approximate matches
                         pointsGagnes = Math.round(pointsGagnes * similarite);
                         
                         setStats(function(prev) { 
@@ -631,18 +676,18 @@
                             };
                         });
                         
-                        // Mettre à jour l'employé comme découvert
+                        // Update employee as discovered
                         setEmployes(function(prev) {
                             return prev.map(function(e) {
                                 return e.id === meilleurMatch.id ? { ...e, decouvert: true } : e;
                             });
                         });
                         
-                        setMessage(`Bravo ! Vous avez trouvé un employé avec un nom similaire : "${meilleurMatch.prenom} ${meilleurMatch.nom}" (${Math.round(similarite * 100)}% de similarité). +${pointsGagnes} points !`);
+                        setMessage(`Well done! You found an employee with a similar name: "${meilleurMatch.prenom} ${meilleurMatch.nom}" (${Math.round(similarite * 100)}% similarity). +${pointsGagnes} points!`);
                         setIsError(false);
                         setRecherche("");
                         
-                        // Restaurer la position de défilement après le rendu
+                        // Restore scroll position after rendering
                         setTimeout(function() {
                             window.scrollTo(0, scrollPositionRef.current);
                         }, 0);
@@ -650,22 +695,22 @@
                         return;
                     }
                     
-                    // Vérifier si l'employé a déjà été découvert
+                    // Check if employee has already been discovered
                     const employeDejaDecouvert = employes.find(
                         function(e) { return e.nom.toLowerCase() === nomRecherche && e.decouvert; }
                     );
                     
                     if (employeDejaDecouvert) {
-                        setMessage(`Vous avez déjà découvert ${employeDejaDecouvert.prenom} ${employeDejaDecouvert.nom}.`);
+                        setMessage(`You've already found ${employeDejaDecouvert.prenom} ${employeDejaDecouvert.nom}.`);
                         setIsError(true);
                     } else {
-                        setMessage(`Aucun employé trouvé avec le nom "${recherche}".`);
+                        setMessage(`No employee found with the name "${recherche}".`);
                         setIsError(true);
                     }
                     
                     setRecherche("");
                     
-                    // Restaurer la position de défilement après le rendu
+                    // Restore scroll position after rendering
                     setTimeout(function() {
                         window.scrollTo(0, scrollPositionRef.current);
                     }, 0);
@@ -673,18 +718,18 @@
                     return;
                 }
                 
-                // Correspondance exacte trouvée
-                let pointsGagnes = 10; // Par défaut, 10 points sans indices
+                // Exact match found
+                let pointsGagnes = 10; // Default: 10 points without hints
                 
-                // Calculer les points en fonction des indices utilisés
+                // Calculate points based on hints used
                 if (indicesActives.communaute && indicesActives.role && indicesActives.initiales) {
-                    pointsGagnes = 1; // 1 point avec tous les indices
+                    pointsGagnes = 1; // 1 point with all hints
                 } else if ((indicesActives.communaute && indicesActives.role) || 
                         (indicesActives.communaute && indicesActives.initiales) || 
                         (indicesActives.role && indicesActives.initiales)) {
-                    pointsGagnes = 3; // 3 points avec deux indices
+                    pointsGagnes = 3; // 3 points with two hints
                 } else if (indicesActives.communaute || indicesActives.role || indicesActives.initiales) {
-                    pointsGagnes = 5; // 5 points avec un seul indice
+                    pointsGagnes = 5; // 5 points with one hint
                 }
                 
                 setStats(function(prev) { 
@@ -695,24 +740,24 @@
                     };
                 });
                 
-                // Mettre à jour l'employé comme découvert
+                // Update employee as discovered
                 setEmployes(function(prev) {
                     return prev.map(function(e) {
                         return e.id === employeExact.id ? { ...e, decouvert: true } : e;
                     });
                 });
                 
-                setMessage(`Bravo ! Vous avez trouvé ${employeExact.prenom} ${employeExact.nom}. +${pointsGagnes} points !`);
+                setMessage(`Well done! You found ${employeExact.prenom} ${employeExact.nom}. +${pointsGagnes} points!`);
                 setIsError(false);
                 setRecherche("");
                 
-                // Restaurer la position de défilement après le rendu
+                // Restore scroll position after rendering
                 setTimeout(function() {
                     window.scrollTo(0, scrollPositionRef.current);
                 }, 0);
             }
 
-            // Activer/désactiver les indices
+            // Toggle hints
             function toggleIndice(indice) {
                 if (!jeuCommence || jeuTermine) return;
                 
@@ -723,30 +768,30 @@
                 });
             }
 
-            // Modifier le seuil de similarité
+            // Change similarity threshold
             function changerSeuilSimilarite(e) {
                 setSeuilSimilarite(parseFloat(e.target.value));
             }
 
-            // Affichage de l'écran de connexion
+            // Login screen display
             if (!isPlaying) {
                 return React.createElement(
                     "div",
                     null,
                     [
-                        // Titre principal
+                        // Main title
                         React.createElement(
                             "h1",
                             { style: { textAlign: "center", marginBottom: "30px" } },
-                            "Les 100 premiers Alaniens"
+                            "First 100 Alaners"
                         ),
                         
-                        // Formulaire de connexion
+                        // Login form
                         React.createElement(
                             "div",
                             { className: "login-container" },
                             [
-                                React.createElement("h2", null, "Entrez votre email pour jouer"),
+                                React.createElement("h2", null, "Enter your email to play"),
                                 
                                 React.createElement(
                                     "form",
@@ -756,13 +801,13 @@
                                             "div",
                                             { style: { marginBottom: "15px" } },
                                             [
-                                                React.createElement("label", { htmlFor: "email" }, "Votre email:"),
+                                                React.createElement("label", { htmlFor: "email" }, "Your email:"),
                                                 React.createElement("input", {
                                                     id: "email",
                                                     type: "email",
                                                     value: playerEmail,
                                                     onChange: (e) => setPlayerEmail(e.target.value),
-                                                    placeholder: "exemple@alan.eu",
+                                                    placeholder: "example@alan.eu",
                                                     required: true
                                                 })
                                             ]
@@ -783,7 +828,7 @@
                                                 type: "submit",
                                                 className: "start-button"
                                             },
-                                            "Commencer à jouer"
+                                            "Start Playing"
                                         )
                                     ]
                                 )
@@ -799,20 +844,20 @@
                                     "h2",
                                     { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
                                     [
-                                        "Classement",
+                                        "Leaderboard",
                                         React.createElement(
                                             "button",
                                             { 
                                                 onClick: loadLeaderboard,
                                                 style: { fontSize: "14px", padding: "5px 10px" }
                                             },
-                                            "Actualiser"
+                                            "Refresh"
                                         )
                                     ]
                                 ),
                                 
                                 isLoadingLeaderboard 
-                                    ? React.createElement("p", null, "Chargement du classement...")
+                                    ? React.createElement("p", null, "Loading leaderboard...")
                                     : React.createElement(
                                         "table",
                                         { className: "leaderboard-table" },
@@ -824,10 +869,10 @@
                                                     "tr",
                                                     null,
                                                     [
-                                                        React.createElement("th", null, "Rang"),
-                                                        React.createElement("th", null, "Joueur"),
+                                                        React.createElement("th", null, "Rank"),
+                                                        React.createElement("th", null, "Player"),
                                                         React.createElement("th", { style: { textAlign: "right" } }, "Score"),
-                                                        React.createElement("th", { style: { textAlign: "right" } }, "Découverts")
+                                                        React.createElement("th", { style: { textAlign: "right" } }, "Found")
                                                     ]
                                                 )
                                             ),
@@ -845,7 +890,7 @@
                                                             },
                                                             [
                                                                 React.createElement("td", null, `#${index + 1}`),
-                                                                React.createElement("td", null, entry.email ? entry.email.split('@')[0] : "Anonyme"),
+                                                                React.createElement("td", null, entry.email ? entry.email.split('@')[0] : "Anonymous"),
                                                                 React.createElement("td", { style: { textAlign: "right", fontWeight: "bold" } }, entry.score),
                                                                 React.createElement("td", { style: { textAlign: "right" } }, `${entry.discovered || 0}/${entry.total || 100}`)
                                                             ]
@@ -857,7 +902,7 @@
                                                         React.createElement(
                                                             "td",
                                                             { colSpan: 4, style: { textAlign: "center", padding: "15px" } },
-                                                            "Aucun score enregistré pour le moment"
+                                                            "No scores recorded yet"
                                                         )
                                                     )
                                             )
@@ -869,7 +914,7 @@
                 );
             }
 
-            // Afficher un message de chargement si les données ne sont pas encore chargées
+            // Loading message if data isn't loaded yet
             if (!employesCharges) {
                 return React.createElement(
                     "div", 
@@ -877,21 +922,21 @@
                     React.createElement(
                         "div", 
                         { style: { textAlign: "center", padding: "50px" } },
-                        "Chargement des données..."
+                        "Loading data..."
                     )
                 );
             }
 
-            // Interface principale du jeu
+            // Main game interface
             return React.createElement(
                 "div",
                 { className: "container" },
                 [
-                    // Titre
+                    // Title
                     React.createElement(
                         "h1",
                         { style: { textAlign: "center", marginBottom: "20px" } },
-                        "Les 100 premiers Alaniens"
+                        "First 100 Alaners"
                     ),
                     
                     // Instructions
@@ -902,46 +947,46 @@
                             React.createElement(
                                 "h2",
                                 { style: { fontSize: "1.25rem", marginBottom: "10px" } },
-                                "Comment jouer :"
+                                "How to play:"
                             ),
                             React.createElement(
                                 "ol",
                                 { style: { paddingLeft: "20px" } },
                                 [
-                                    React.createElement("li", null, "Devinez le nom de famille d'un des 100 premiers employés d'Alan"),
+                                    React.createElement("li", null, "Guess the last name of one of the first 100 Alan employees"),
                                     React.createElement("li", null, [
                                         React.createElement("strong", null, "10 points"),
-                                        " par nom trouvé sans indice"
+                                        " per name found without hints"
                                     ]),
                                     React.createElement("li", null, [
-                                        "Utilisez les boutons d'indices pour vous aider :",
+                                        "Use hint buttons to help you:",
                                         React.createElement(
                                             "ul",
                                             { style: { paddingLeft: "20px", marginTop: "5px" } },
                                             [
                                                 React.createElement("li", null, [
-                                                    "Avec 1 indice : ",
+                                                    "With 1 hint: ",
                                                     React.createElement("strong", null, "5 points"),
-                                                    " par nom trouvé"
+                                                    " per name found"
                                                 ]),
                                                 React.createElement("li", null, [
-                                                    "Avec 2 indices : ",
+                                                    "With 2 hints: ",
                                                     React.createElement("strong", null, "3 points"),
-                                                    " par nom trouvé"
+                                                    " per name found"
                                                 ]),
                                                 React.createElement("li", null, [
-                                                    "Avec 3 indices : ",
+                                                    "With 3 hints: ",
                                                     React.createElement("strong", null, "1 point"),
-                                                    " par nom trouvé"
+                                                    " per name found"
                                                 ])
                                             ]
                                         )
                                     ]),
-                                    React.createElement("li", null, "Les orthographes approximatives sont acceptées"),
+                                    React.createElement("li", null, "Approximate spellings are accepted"),
                                     React.createElement("li", null, [
-                                        "Vous avez ",
+                                        "You have ",
                                         React.createElement("strong", null, "20 minutes"),
-                                        " pour trouver un maximum de noms !"
+                                        " to find as many names as possible!"
                                     ])
                                 ]
                             ),
@@ -952,7 +997,7 @@
                                 React.createElement(
                                     "button",
                                     { onClick: commencerJeu },
-                                    "Commencer"
+                                    "Start"
                                 )
                             ) : null
                         ]
@@ -974,12 +1019,12 @@
                             jeuCommence ? React.createElement(
                                 "div",
                                 { style: { fontSize: "14px" } },
-                                jeuTermine ? "Temps écoulé !" : "Temps restant"
+                                jeuTermine ? "Time's up!" : "Time remaining"
                             ) : null
                         ]
                     ),
                     
-                    // Formulaire de recherche
+                    // Search form
                     React.createElement(
                         "div",
                         { className: "sticky-search" },
@@ -998,7 +1043,7 @@
                                                     type: "text",
                                                     value: recherche,
                                                     onChange: (e) => setRecherche(e.target.value),
-                                                    placeholder: "Entrez un nom de famille...",
+                                                    placeholder: "Enter a last name...",
                                                     disabled: !jeuCommence || jeuTermine,
                                                     style: { 
                                                         flex: "1",
@@ -1015,7 +1060,7 @@
                                                         opacity: (!jeuCommence || jeuTermine) ? 0.7 : 1
                                                     }
                                                 },
-                                                "V��rifier"
+                                                "Check"
                                             )
                                         ]
                                     )
@@ -1031,7 +1076,7 @@
                         ]
                     ),
                     
-                    // Statistiques et contrôles
+                    // Statistics and controls
                     React.createElement(
                         "div",
                         {
@@ -1046,7 +1091,7 @@
                             }
                         },
                         [
-                            // Statistiques
+                            // Statistics
                             React.createElement(
                                 "div",
                                 null,
@@ -1054,27 +1099,27 @@
                                     React.createElement(
                                         "div",
                                         null,
-                                        `Progrès : ${stats.decouverts} / ${stats.total} employés découverts`
+                                        `Progress: ${stats.decouverts} / ${stats.total} employees found`
                                     ),
                                     React.createElement(
                                         "div",
                                         { style: { fontSize: "18px", fontWeight: "bold" } },
-                                        `Score : ${stats.score} points`
+                                        `Score: ${stats.score} points`
                                     ),
                                     React.createElement(
                                         "div",
                                         null,
-                                        `Joueur : ${playerEmail.split('@')[0]}`
+                                        `Player: ${playerEmail.split('@')[0]}`
                                     )
                                 ]
                             ),
                             
-                            // Boutons d'indices
+                            // Hint buttons
                             React.createElement(
                                 "div",
                                 { style: { display: "flex", flexWrap: "wrap", gap: "10px" } },
                                 [
-                                    // Indice : Communauté
+                                    // Hint: Community
                                     React.createElement(
                                         "button",
                                         {
@@ -1085,10 +1130,10 @@
                                                 opacity: (!jeuCommence || jeuTermine) ? 0.7 : 1
                                             }
                                         },
-                                        indicesActives.communaute ? 'Masquer communauté' : 'Indice : Communauté'
+                                        indicesActives.communaute ? 'Hide community' : 'Hint: Community'
                                     ),
                                     
-                                    // Indice : Rôle
+                                    // Hint: Role
                                     React.createElement(
                                         "button",
                                         {
@@ -1099,10 +1144,10 @@
                                                 opacity: (!jeuCommence || jeuTermine) ? 0.7 : 1
                                             }
                                         },
-                                        indicesActives.role ? 'Masquer rôle' : 'Indice : Rôle'
+                                        indicesActives.role ? 'Hide role' : 'Hint: Role'
                                     ),
                                     
-                                    // Indice : Initiales
+                                    // Hint: Initials
                                     React.createElement(
                                         "button",
                                         {
@@ -1113,51 +1158,64 @@
                                                 opacity: (!jeuCommence || jeuTermine) ? 0.7 : 1
                                             }
                                         },
-                                        indicesActives.initiales ? 'Masquer initiales' : 'Indice : Initiales'
+                                        indicesActives.initiales ? 'Hide initials' : 'Hint: Initials'
                                     )
                                 ]
                             ),
                             
-                            // Bouton pour changer d'email (revenir à l'écran de connexion)
+                            // Action buttons
                             React.createElement(
                                 "div",
-                                { style: { textAlign: "center" } },
-                                React.createElement(
-                                    "button",
-                                    {
-                                        onClick: () => {
-                                            if (jeuCommence && !jeuTermine) {
-                                                if (window.confirm("Êtes-vous sûr de vouloir quitter ? Votre progression sera perdue.")) {
-                                                    // Nettoyer le timer
-                                                    if (timerRef.current) {
-                                                        clearInterval(timerRef.current);
+                                { className: "actions-container" },
+                                [
+                                    // Finish button (only visible during active game)
+                                    jeuCommence && !jeuTermine && React.createElement(
+                                        "button",
+                                        {
+                                            onClick: finishGame,
+                                            className: "finish-button"
+                                        },
+                                        "Finish"
+                                    ),
+                                    
+                                    // Change email button
+                                    React.createElement(
+                                        "button",
+                                        {
+                                            onClick: () => {
+                                                if (jeuCommence && !jeuTermine) {
+                                                    if (window.confirm("Are you sure you want to quit? Your progress will be lost.")) {
+                                                        // Clean up timer
+                                                        if (timerRef.current) {
+                                                            clearInterval(timerRef.current);
+                                                        }
+                                                        
+                                                        // Reset game state
+                                                        setIsPlaying(false);
+                                                        setJeuCommence(false);
+                                                        setJeuTermine(false);
+                                                        setEmployesCharges(false);
                                                     }
-                                                    
-                                                    // Réinitialiser l'état du jeu
+                                                } else {
+                                                    // Reset game state
                                                     setIsPlaying(false);
                                                     setJeuCommence(false);
                                                     setJeuTermine(false);
                                                     setEmployesCharges(false);
                                                 }
-                                            } else {
-                                                // Réinitialiser l'état du jeu
-                                                setIsPlaying(false);
-                                                setJeuCommence(false);
-                                                setJeuTermine(false);
-                                                setEmployesCharges(false);
+                                            },
+                                            style: {
+                                                backgroundColor: "#6b7280"
                                             }
                                         },
-                                        style: {
-                                            backgroundColor: "#ef4444"
-                                        }
-                                    },
-                                    "Changer d'email"
-                                )
+                                        "Change Email"
+                                    )
+                                ]
                             )
                         ]
                     ),
                     
-                    // Réglage de la sensibilité
+                    // Similarity threshold setting
                     React.createElement(
                         "div",
                         {
@@ -1172,7 +1230,7 @@
                             React.createElement(
                                 "div",
                                 { style: { fontWeight: "500", marginBottom: "10px" } },
-                                `Sensibilité de correspondance : ${Math.round(seuilSimilarite * 100)}%`
+                                `Matching sensitivity: ${Math.round(seuilSimilarite * 100)}%`
                             ),
                             React.createElement(
                                 "input",
@@ -1190,31 +1248,31 @@
                                 "div",
                                 { style: { display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#6b7280" } },
                                 [
-                                    React.createElement("span", null, "Plus flexible"),
-                                    React.createElement("span", null, "Plus strict")
+                                    React.createElement("span", null, "More flexible"),
+                                    React.createElement("span", null, "More strict")
                                 ]
                             )
                         ]
                     ),
                     
-                    // Liste des employés
+                    // Employee list
                     React.createElement(
                         "div",
                         { className: "employee-list" },
                         [
-                            // Titre
+                            // Title
                             React.createElement(
                                 "div",
                                 { className: "employee-list-header" },
-                                `Liste des employés (${employes.length})`
+                                `Employee List (${employes.length})`
                             ),
                             
-                            // Tableau des employés
+                            // Employee table
                             React.createElement(
                                 "table",
                                 { className: "employee-table" },
                                 [
-                                    // En-tête du tableau
+                                    // Table header
                                     React.createElement(
                                         "thead",
                                         null,
@@ -1223,16 +1281,16 @@
                                             null,
                                             [
                                                 React.createElement("th", null, "ID"),
-                                                React.createElement("th", null, "Date début"),
-                                                indicesActives.communaute && React.createElement("th", null, "Communauté"),
-                                                indicesActives.role && React.createElement("th", null, "Rôle"),
-                                                indicesActives.initiales && React.createElement("th", null, "Initiales"),
-                                                React.createElement("th", null, "Nom complet")
-                                            ].filter(Boolean) // Filtre les éléments null
+                                                React.createElement("th", null, "Start Date"),
+                                                indicesActives.communaute && React.createElement("th", null, "Community"),
+                                                indicesActives.role && React.createElement("th", null, "Role"),
+                                                indicesActives.initiales && React.createElement("th", null, "Initials"),
+                                                React.createElement("th", null, "Full Name")
+                                            ].filter(Boolean) // Filter out null elements
                                         )
                                     ),
                                     
-                                    // Corps du tableau
+                                    // Table body
                                     React.createElement(
                                         "tbody",
                                         null,
@@ -1257,7 +1315,7 @@
                                                             ? React.createElement("span", { style: { fontWeight: "500" } }, `${employe.prenom} ${employe.nom}`)
                                                             : React.createElement("span", { className: "hidden-name" }, "● ●")
                                                     )
-                                                ].filter(Boolean) // Filtre les éléments null
+                                                ].filter(Boolean) // Filter out null elements
                                             );
                                         })
                                     )
@@ -1266,7 +1324,7 @@
                         ]
                     ),
                     
-                    // Message de fin de jeu
+                    // Game over message
                     jeuTermine && React.createElement(
                         "div",
                         { 
@@ -1279,14 +1337,14 @@
                             } 
                         },
                         [
-                            React.createElement("h2", { style: { color: "#b91c1c" } }, "Temps écoulé !"),
+                            React.createElement("h2", { style: { color: "#b91c1c" } }, "Time's up!"),
                             React.createElement(
                                 "p",
                                 null,
                                 [
-                                    "Vous avez trouvé ",
+                                    "You found ",
                                     React.createElement("strong", null, stats.decouverts),
-                                    ` employés sur ${stats.total} et marqué `,
+                                    ` employees out of ${stats.total} and scored `,
                                     React.createElement("strong", null, stats.score),
                                     " points."
                                 ]
@@ -1294,15 +1352,15 @@
                             React.createElement(
                                 "p",
                                 { style: { fontStyle: "italic", margin: "10px 0" } },
-                                "Toutes les réponses ont été révélées. Vous pouvez explorer la liste complète."
+                                "All answers are now revealed. You can explore the complete list."
                             ),
                             
-                            // Boutons d'actions après la fin du jeu
+                            // Action buttons after game ends
                             React.createElement(
                                 "div",
-                                { style: { display: "flex", justifyContent: "center", gap: "10px", marginTop: "15px" } },
+                                { className: "actions-container" },
                                 [
-                                    // Rejouer
+                                    // Play again
                                     React.createElement(
                                         "button",
                                         { 
@@ -1317,37 +1375,37 @@
                                                 setJeuCommence(false);
                                                 setJeuTermine(false);
                                                 setTempsRestant(1200);
-                                                setMessage("Jeu réinitialisé ! Cliquez sur 'Commencer' pour démarrer une nouvelle partie.");
+                                                setMessage("Game reset! Click 'Start' to begin a new game.");
                                                 setIsError(false);
                                             },
                                             style: {
                                                 backgroundColor: "#3b82f6"
                                             }
                                         },
-                                        "Rejouer"
+                                        "Play Again"
                                     ),
                                     
-                                    // Changer d'email
+                                    // Change email
                                     React.createElement(
                                         "button",
                                         {
                                             onClick: () => {
-                                                // Réinitialiser l'état du jeu
+                                                // Reset game state
                                                 setIsPlaying(false);
                                                 setJeuCommence(false);
                                                 setJeuTermine(false);
                                                 setEmployesCharges(false);
                                                 
-                                                // Nettoyer le timer
+                                                // Clean up timer
                                                 if (timerRef.current) {
                                                     clearInterval(timerRef.current);
                                                 }
                                             },
                                             style: {
-                                                backgroundColor: "#ef4444"
+                                                backgroundColor: "#6b7280"
                                             }
                                         },
-                                        "Changer d'email"
+                                        "Change Email"
                                     )
                                 ]
                             )
@@ -1357,7 +1415,7 @@
             );
         }
 
-        // Rendu de l'application
+        // Render the application
         ReactDOM.render(React.createElement(App), document.getElementById('root'));
     </script>
 </body>
