@@ -319,14 +319,14 @@ const saveScore = async () => {
     
     if (snapshot.empty) {
       // Créer un nouveau score
-      await firebase.firestore().collection('scores').add({
-        userId: user.uid,
-        email: user.email,
-        score: stats.score,
-        discovered: stats.decouverts, // Changez stats.discovered à stats.decouverts
-        total: stats.total,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
+await firebase.firestore().collection('scores').add({
+  userId: user.uid,
+  email: user.email,
+  score: stats.score,
+  discovered: stats.decouverts,
+  total: stats.total,
+  timestamp: firebase.firestore.FieldValue.serverTimestamp()
+});
     } else {
       // Mettre à jour le score existant si le nouveau score est plus élevé
       const docId = snapshot.docs[0].id;
