@@ -323,7 +323,7 @@ const saveScore = async () => {
         userId: user.uid,
         email: user.email,
         score: stats.score,
-        discovered: stats.discovered,
+        discovered: stats.decouverts, // Changez stats.discovered à stats.decouverts
         total: stats.total,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -335,7 +335,7 @@ const saveScore = async () => {
       if (stats.score > currentScore) {
         await firebase.firestore().collection('scores').doc(docId).update({
           score: stats.score,
-          discovered: stats.discovered,
+          discovered: stats.decouverts, // Changez stats.discovered à stats.decouverts
           timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
       }
