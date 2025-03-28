@@ -9,14 +9,16 @@
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
 <script>
-// Votre configuration Firebase (remplacez par celle obtenue à l'étape précédente)
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyCrvRv5dxD4bwlVoMsX2BnKTzp58UdOg2g",
-  authDomain: "votre-projet.firebaseapp.com",
-  projectId: "votre-projet",
-  storageBucket: "votre-projet.appspot.com",
-  messagingSenderId: "votre-messaging-sender-id",
-  appId: "votre-app-id"
+  authDomain: "first-100-alaners.firebaseapp.com",
+  projectId: "first-100-alaners",
+  storageBucket: "first-100-alaners.firebasestorage.app",
+  messagingSenderId: "996377669747",
+  appId: "1:996377669747:web:d27ab25e99d6c58278fa06",
+  measurementId: "G-73746XWZ6C"
+};
 };
 
 // Initialize Firebase
