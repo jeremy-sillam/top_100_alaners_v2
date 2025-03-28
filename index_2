@@ -1369,6 +1369,11 @@ React.createElement(
     }
   },
   "Sign Out"
+),  // Ajoutez cette virgule ici
+
+// Bouton exporter CSV
+React.createElement(
+  // ...
 )
                                     
                                     // Bouton exporter CSV
