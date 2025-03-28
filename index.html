@@ -3,15 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Les 100 premiers Alaniens</title>
+    <title>Les 100 premiers Alaniens - Version Simple</title>
 
     <!-- React -->
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
-
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
     <!-- PapaParse pour le traitement CSV -->
     <script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"></script>
@@ -29,7 +25,7 @@
             padding: 20px;
         }
         .container {
-            background-color: #f5f5f5;
+            background-color: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -59,23 +55,18 @@
             border-radius: 4px;
             margin-bottom: 10px;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
+        .timer {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            background-color: #f0f9ff;
+            border-radius: 4px;
             margin-bottom: 20px;
         }
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #f0f0f0;
-            font-weight: bold;
-        }
-        .highlight {
-            background-color: #e8f5e9;
+        .timer.ending {
+            color: #b91c1c;
+            background-color: #fee2e2;
         }
         .message {
             margin: 16px 0;
@@ -97,31 +88,6 @@
         .hint-button.active {
             background-color: #d97706;
         }
-        .timer {
-            font-size: 24px;
-            font-weight: bold;
-            text-align: center;
-            padding: 10px;
-            background-color: #f0f9ff;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-        .timer.ending {
-            color: #b91c1c;
-            background-color: #fee2e2;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-        .sensitivity-slider {
-            width: 100%;
-            margin: 10px 0;
-        }
         .employee-list {
             border: 1px solid #e5e7eb;
             border-radius: 8px;
@@ -135,6 +101,12 @@
         }
         .employee-table {
             width: 100%;
+            border-collapse: collapse;
+        }
+        .employee-table th, .employee-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
         }
         .employee-table th {
             background-color: #f3f4f6;
@@ -144,16 +116,6 @@
         }
         .hidden-name {
             color: #9ca3af;
-        }
-        .game-over {
-            background-color: #fee2e2;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            margin-top: 20px;
-        }
-        .game-over h2 {
-            color: #b91c1c;
         }
         .sticky-search {
             position: sticky;
@@ -168,21 +130,6 @@
     <div id="root"></div>
 
     <script>
-        // Initialisation de Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyCrvRv5dxD4bwlVoMsX2BnKTzp58UdOg2g",
-            authDomain: "first-100-alaners.firebaseapp.com",
-            projectId: "first-100-alaners",
-            storageBucket: "first-100-alaners.firebasestorage.app",
-            messagingSenderId: "996377669747",
-            appId: "1:996377669747:web:d27ab25e99d6c58278fa06",
-            measurementId: "G-73746XWZ6C"
-        };
-
-        // Initialiser Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-
         // Données complètes des employés
         const donneesBrutes = `employee_id,first_name,last_name,original_start_date,community,role,first_initial,last_initial
 0,Jean-Charles,Samuelian,"1 Jan, 2016",Co-founders,CEO,J,S
@@ -290,18 +237,12 @@
         function App() {
             const { useState, useEffect, useRef } = React;
             
-            // États
-            const [playerEmail, setPlayerEmail] = useState("");
-            const [isPlaying, setIsPlaying] = useState(false);
-            const [message, setMessage] = useState("");
-            const [isError, setIsError] = useState(false);
-            const [leaderboard, setLeaderboard] = useState([]);
-            const [isLoading, setIsLoading] = useState(true);
-            
             // États du jeu
             const [employes, setEmployes] = useState([]);
             const [employesCharges, setEmployesCharges] = useState(false);
             const [recherche, setRecherche] = useState("");
+            const [message, setMessage] = useState("");
+            const [isError, setIsError] = useState(false);
             const [stats, setStats] = useState({ total: 0, decouverts: 0, score: 0 });
             const [indicesActives, setIndicesActives] = useState({
                 communaute: false,
@@ -314,11 +255,6 @@
             const [jeuTermine, setJeuTermine] = useState(false);
             const timerRef = useRef(null);
             const scrollPositionRef = useRef(0);
-
-            // Charger le leaderboard au démarrage
-            useEffect(() => {
-                loadLeaderboard();
-            }, []);
 
             // Charger les données des employés
             useEffect(() => {
@@ -372,9 +308,6 @@
                                     });
                                 });
                                 
-                                // Sauvegarder le score
-                                saveScore();
-                                
                                 return 0;
                             }
                             return prev - 1;
@@ -388,91 +321,6 @@
                     }
                 };
             }, [jeuCommence, jeuTermine]);
-
-            // Fonction pour charger le leaderboard
-            function loadLeaderboard() {
-                setIsLoading(true);
-                db.collection("scores")
-                    .orderBy("score", "desc")
-                    .limit(10)
-                    .get()
-                    .then((snapshot) => {
-                        const scores = [];
-                        snapshot.forEach((doc) => {
-                            scores.push({
-                                id: doc.id,
-                                ...doc.data()
-                            });
-                        });
-                        setLeaderboard(scores);
-                        setIsLoading(false);
-                    })
-                    .catch((error) => {
-                        console.error("Erreur lors du chargement du classement:", error);
-                        setMessage("Erreur lors du chargement du classement: " + error.message);
-                        setIsError(true);
-                        setIsLoading(false);
-                    });
-            }
-
-            // Fonction pour sauvegarder le score
-            function saveScore() {
-                if (!playerEmail) return;
-                
-                try {
-                    // Vérifier si le joueur a déjà un score
-                    db.collection("scores")
-                        .where("email", "==", playerEmail)
-                        .get()
-                        .then((snapshot) => {
-                            if (snapshot.empty) {
-                                // Créer un nouveau score
-                                return db.collection("scores").add({
-                                    email: playerEmail,
-                                    score: stats.score,
-                                    discovered: stats.decouverts,
-                                    total: stats.total,
-                                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                                });
-                            } else {
-                                // Mettre à jour le score existant si le nouveau est plus élevé
-                                const doc = snapshot.docs[0];
-                                const currentScore = doc.data().score;
-                                if (stats.score > currentScore) {
-                                    return db.collection("scores").doc(doc.id).update({
-                                        score: stats.score,
-                                        discovered: stats.decouverts,
-                                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                                    });
-                                } else {
-                                    return Promise.resolve();
-                                }
-                            }
-                        })
-                        .then(() => {
-                            loadLeaderboard();
-                        })
-                        .catch((error) => {
-                            console.error("Erreur sauvegarde score:", error);
-                        });
-                } catch (error) {
-                    console.error("Erreur lors de la sauvegarde du score:", error);
-                }
-            }
-
-            // Fonction pour commencer à jouer
-            function handleStartPlaying(e) {
-                e.preventDefault();
-                if (!playerEmail || !playerEmail.includes('@')) {
-                    setMessage("Veuillez saisir une adresse email valide");
-                    setIsError(true);
-                    return;
-                }
-                
-                setIsPlaying(true);
-                setMessage(`Bienvenue, ${playerEmail.split('@')[0]}! Cliquez sur "Commencer" pour démarrer le jeu.`);
-                setIsError(false);
-            }
 
             // Commencer le jeu
             function commencerJeu() {
@@ -744,138 +592,6 @@
                 setSeuilSimilarite(parseFloat(e.target.value));
             }
 
-            // Fonction pour exporter les données en CSV
-            function exporterCSV() {
-                const header = "employee_id,first_name,last_name,original_start_date,community,role,first_initial,last_initial\n";
-                const lignes = employes.map(function(e) {
-                    return `${e.id},${e.prenom},${e.nom},${e.dateDebut},${e.communaute},${e.role},${e.initialePrenom},${e.initialeNom}`;
-                }).join("\n");
-                
-                const contenu = header + lignes;
-                
-                const blob = new Blob([contenu], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = "100_premiers_alaniens.csv";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
-
-            // Si le joueur n'a pas encore saisi son email
-            if (!isPlaying) {
-                return React.createElement(
-                    "div",
-                    { className: "container" },
-                    [
-                        React.createElement("h1", null, "Jeu des 100 premiers Alaniens"),
-                        React.createElement("p", null, "Entrez votre email pour jouer et voir le classement"),
-                        
-                        // Affichage du leaderboard même sans connexion
-                        React.createElement(
-                            "div",
-                            null,
-                            [
-                                React.createElement("h2", null, "Classement actuel"),
-                                isLoading 
-                                    ? React.createElement("p", null, "Chargement du classement...")
-                                    : React.createElement(
-                                        "table",
-                                        null,
-                                        [
-                                            // En-tête du tableau
-                                            React.createElement(
-                                                "thead",
-                                                null,
-                                                React.createElement(
-                                                    "tr",
-                                                    null,
-                                                    [
-                                                        React.createElement("th", null, "Rang"),
-                                                        React.createElement("th", null, "Joueur"),
-                                                        React.createElement("th", null, "Score"),
-                                                        React.createElement("th", null, "Découverts")
-                                                    ]
-                                                )
-                                            ),
-                                            
-                                            // Corps du tableau
-                                            React.createElement(
-                                                "tbody",
-                                                null,
-                                                leaderboard.length > 0 ? 
-                                                    leaderboard.map((entry, index) => 
-                                                        React.createElement(
-                                                            "tr",
-                                                            { key: entry.id },
-                                                            [
-                                                                React.createElement("td", null, "#" + (index + 1)),
-                                                                React.createElement("td", null, entry.email ? entry.email.split('@')[0] : "Anonyme"),
-                                                                React.createElement("td", null, entry.score),
-                                                                React.createElement("td", null, `${entry.discovered || 0}/${entry.total || 100}`)
-                                                            ]
-                                                        )
-                                                    ) :
-                                                    React.createElement(
-                                                        "tr",
-                                                        null,
-                                                        React.createElement(
-                                                            "td",
-                                                            { colSpan: 4, style: { textAlign: "center" } },
-                                                            "Aucun score enregistré pour le moment"
-                                                        )
-                                                    )
-                                            )
-                                        ]
-                                    )
-                            ]
-                        ),
-                        
-                        // Formulaire d'email
-                        React.createElement(
-                            "form",
-                            { 
-                                onSubmit: handleStartPlaying,
-                                style: { marginTop: "20px", borderTop: "1px solid #ddd", paddingTop: "20px" }
-                            },
-                            [
-                                // Email
-                                React.createElement(
-                                    "div",
-                                    { className: "form-group" },
-                                    [
-                                        React.createElement("label", null, "Votre email:"),
-                                        React.createElement("input", {
-                                            type: "email",
-                                            value: playerEmail,
-                                            onChange: (e) => setPlayerEmail(e.target.value),
-                                            placeholder: "exemple@alan.eu",
-                                            required: true
-                                        })
-                                    ]
-                                ),
-                                
-                                // Bouton de soumission
-                                React.createElement(
-                                    "button",
-                                    { type: "submit" },
-                                    "Commencer à jouer"
-                                )
-                            ]
-                        ),
-                        
-                        // Message d'erreur ou de succès
-                        message && React.createElement(
-                            "div",
-                            { className: `message ${isError ? "error" : "success"}` },
-                            message
-                        )
-                    ]
-                );
-            }
-
             // Afficher un message de chargement si les données ne sont pas encore chargées
             if (!employesCharges) {
                 return React.createElement(
@@ -1071,78 +787,6 @@
                                 ]
                             ),
                             
-                            // Classement
-                            React.createElement(
-                                "div",
-                                null,
-                                [
-                                    React.createElement(
-                                        "h3",
-                                        { style: { marginBottom: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" } },
-                                        [
-                                            "Classement",
-                                            React.createElement(
-                                                "button",
-                                                { onClick: loadLeaderboard, style: { padding: "5px 10px", fontSize: "14px" } },
-                                                "Actualiser"
-                                            )
-                                        ]
-                                    ),
-                                    React.createElement(
-                                        "table",
-                                        null,
-                                        [
-                                            // En-tête du tableau
-                                            React.createElement(
-                                                "thead",
-                                                null,
-                                                React.createElement(
-                                                    "tr",
-                                                    null,
-                                                    [
-                                                        React.createElement("th", null, "Rang"),
-                                                        React.createElement("th", null, "Joueur"),
-                                                        React.createElement("th", { style: { textAlign: "right" } }, "Score"),
-                                                        React.createElement("th", { style: { textAlign: "right" } }, "Découverts")
-                                                    ]
-                                                )
-                                            ),
-                                            
-                                            // Corps du tableau
-                                            React.createElement(
-                                                "tbody",
-                                                null,
-                                                leaderboard.length > 0 ? 
-                                                    leaderboard.map((entry, index) => 
-                                                        React.createElement(
-                                                            "tr",
-                                                            {
-                                                                key: entry.id,
-                                                                className: entry.email === playerEmail ? "highlight" : ""
-                                                            },
-                                                            [
-                                                                React.createElement("td", null, "#" + (index + 1)),
-                                                                React.createElement("td", null, entry.email.split('@')[0]),
-                                                                React.createElement("td", { style: { textAlign: "right", fontWeight: "bold" } }, entry.score),
-                                                                React.createElement("td", { style: { textAlign: "right" } }, `${entry.discovered || 0}/${entry.total || 100}`)
-                                                            ]
-                                                        )
-                                                    ) :
-                                                    React.createElement(
-                                                        "tr",
-                                                        null,
-                                                        React.createElement(
-                                                            "td",
-                                                            { colSpan: 4, style: { textAlign: "center" } },
-                                                            "Aucun score enregistré pour le moment"
-                                                        )
-                                                    )
-                                            )
-                                        ]
-                                    )
-                                ]
-                            ),
-                            
                             // Boutons d'indices
                             React.createElement(
                                 "div",
@@ -1202,38 +846,6 @@
                                         "button",
                                         { onClick: reinitialiser },
                                         jeuTermine ? "Recommencer" : "Réinitialiser"
-                                    ),
-                                    
-                                    // Bouton exporter CSV
-                                    React.createElement(
-                                        "button",
-                                        { 
-                                            onClick: exporterCSV,
-                                            style: { backgroundColor: "#22c55e" }
-                                        },
-                                        "Exporter CSV"
-                                    ),
-                                    
-                                    // Bouton changer d'email
-                                    React.createElement(
-                                        "button",
-                                        { 
-                                            onClick: () => {
-                                                if (jeuCommence && !jeuTermine) {
-                                                    if (window.confirm("Êtes-vous sûr de vouloir quitter la partie en cours ?")) {
-                                                        setIsPlaying(false);
-                                                        setJeuCommence(false);
-                                                        if (timerRef.current) {
-                                                            clearInterval(timerRef.current);
-                                                        }
-                                                    }
-                                                } else {
-                                                    setIsPlaying(false);
-                                                }
-                                            },
-                                            style: { backgroundColor: "#ef4444" }
-                                        },
-                                        "Changer d'email"
                                     )
                                 ]
                             )
