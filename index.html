@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Leaderboard Firebase</title>
+    <title>Jeu des 100 premiers Alaniens - Connexion simplifiée</title>
 
     <!-- React (version développement) -->
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
@@ -11,7 +11,6 @@
 
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <style>
@@ -61,14 +60,6 @@
             color: #388e3c;
             margin-top: 10px;
         }
-        .toggle-auth {
-            background: none;
-            border: none;
-            color: #4285f4;
-            cursor: pointer;
-            padding: 0;
-            text-decoration: underline;
-        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -117,32 +108,23 @@
         }
 
         // Composant d'application
-        function LeaderboardApp() {
+        function SimpleLeaderboardApp() {
             const { useState, useEffect } = React;
             
             // États
-            const [user, setUser] = useState(null);
             const [email, setEmail] = useState("");
-            const [password, setPassword] = useState("");
-            const [isSigningUp, setIsSigningUp] = useState(false);
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [message, setMessage] = useState("");
             const [isError, setIsError] = useState(false);
             const [leaderboard, setLeaderboard] = useState([]);
             const [testScore, setTestScore] = useState(0);
             const [testDiscovered, setTestDiscovered] = useState(0);
             const [testTotal, setTestTotal] = useState(100);
+            const [playerEmail, setPlayerEmail] = useState("");
 
-            // Écouter les changements d'authentification
+            // Charger le leaderboard au démarrage
             useEffect(() => {
-                const unsubscribe = firebase.auth().onAuthStateChanged((currentUser) => {
-                    console.log("État d'authentification changé:", currentUser);
-                    setUser(currentUser);
-                    if (currentUser) {
-                        loadLeaderboard();
-                    }
-                });
-                
-                return () => unsubscribe();
+                loadLeaderboard();
             }, []);
 
             // Fonction pour charger le leaderboard
@@ -172,25 +154,44 @@
                 }
             };
 
-            // Fonction pour sauvegarder un score de test
+            // Fonction pour "se connecter" simplement avec un email
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if (!email || !email.includes('@')) {
+                    setMessage("Veuillez saisir une adresse email valide");
+                    setIsError(true);
+                    return;
+                }
+                
+                setPlayerEmail(email);
+                setIsLoggedIn(true);
+                setMessage(`Bienvenue, ${email.split('@')[0]}!`);
+                setIsError(false);
+                loadLeaderboard();
+            };
+
+            // Fonction pour sauvegarder un score
             const saveTestScore = async (e) => {
                 e.preventDefault();
-                if (!user) return;
+                if (!playerEmail) return;
                 
                 try {
-                    console.log("Sauvegarde d'un score de test...");
-                    // Vérifier si l'utilisateur a déjà un score
+                    console.log("Sauvegarde d'un score...");
+                    // Générer un ID unique basé sur l'email
+                    const emailHash = playerEmail.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                    
+                    // Vérifier si le joueur a déjà un score
                     const userScoreRef = firebase.firestore()
                         .collection('scores')
-                        .where('userId', '==', user.uid);
+                        .where('email', '==', playerEmail);
                     
                     const snapshot = await userScoreRef.get();
                     
                     if (snapshot.empty) {
                         // Créer un nouveau score
                         await firebase.firestore().collection('scores').add({
-                            userId: user.uid,
-                            email: user.email,
+                            userId: emailHash,
+                            email: playerEmail,
                             score: parseInt(testScore),
                             discovered: parseInt(testDiscovered),
                             total: parseInt(testTotal),
@@ -224,59 +225,22 @@
                 }
             };
 
-            // Fonction de connexion
-            const signIn = async (e) => {
-                e.preventDefault();
+            // Fonction pour se déconnecter
+            const handleLogout = () => {
+                setIsLoggedIn(false);
+                setPlayerEmail("");
+                setEmail("");
                 setMessage("");
-                
-                try {
-                    await firebase.auth().signInWithEmailAndPassword(email, password);
-                    setMessage("Connexion réussie!");
-                    setIsError(false);
-                } catch (error) {
-                    console.error("Erreur de connexion:", error);
-                    setMessage("Erreur: " + error.message);
-                    setIsError(true);
-                }
             };
 
-            // Fonction d'inscription
-            const signUp = async (e) => {
-                e.preventDefault();
-                setMessage("");
-                
-                try {
-                    await firebase.auth().createUserWithEmailAndPassword(email, password);
-                    setMessage("Inscription réussie!");
-                    setIsError(false);
-                } catch (error) {
-                    console.error("Erreur d'inscription:", error);
-                    setMessage("Erreur: " + error.message);
-                    setIsError(true);
-                }
-            };
-
-            // Fonction de déconnexion
-            const signOut = async () => {
-                try {
-                    await firebase.auth().signOut();
-                    setMessage("Déconnexion réussie!");
-                    setIsError(false);
-                } catch (error) {
-                    console.error("Erreur de déconnexion:", error);
-                    setMessage("Erreur: " + error.message);
-                    setIsError(true);
-                }
-            };
-
-            // Affichage si l'utilisateur est connecté
-            if (user) {
+            // Affichage si l'utilisateur est "connecté"
+            if (isLoggedIn) {
                 return React.createElement(
                     "div",
                     { className: "container" },
                     [
-                        React.createElement("h1", null, "Leaderboard Firebase"),
-                        React.createElement("p", null, "Connecté en tant que: " + user.email),
+                        React.createElement("h1", null, "Jeu des 100 premiers Alaniens"),
+                        React.createElement("p", null, `Joueur: ${playerEmail.split('@')[0]}`),
                         React.createElement(
                             "button",
                             { onClick: loadLeaderboard, style: { marginRight: "10px" } },
@@ -284,8 +248,8 @@
                         ),
                         React.createElement(
                             "button",
-                            { onClick: signOut },
-                            "Se déconnecter"
+                            { onClick: handleLogout },
+                            "Changer d'email"
                         ),
                         
                         // Message d'erreur ou de succès
@@ -331,7 +295,7 @@
                                                         "tr",
                                                         {
                                                             key: entry.id,
-                                                            className: entry.userId === user.uid ? "highlight" : ""
+                                                            className: entry.email === playerEmail ? "highlight" : ""
                                                         },
                                                         [
                                                             React.createElement("td", null, "#" + (index + 1)),
@@ -375,7 +339,7 @@
                                                 React.createElement("input", {
                                                     type: "number",
                                                     value: testScore,
-                                                    onChange.target.value),
+                                                    onChange: (e) => setTestScore(e.target.value),
                                                     min: 0,
                                                     required: true
                                                 })
@@ -429,42 +393,91 @@
                 );
             }
 
-            // Formulaire de connexion/inscription
+            // Formulaire de saisie d'email simple
             return React.createElement(
                 "div",
                 { className: "container" },
                 [
-                    React.createElement("h1", null, isSigningUp ? "Inscription" : "Connexion"),
+                    React.createElement("h1", null, "Jeu des 100 premiers Alaniens"),
+                    React.createElement("p", null, "Entrez votre email pour jouer et voir le classement"),
                     
+                    // Affichage du leaderboard même sans connexion
+                    React.createElement(
+                        "div",
+                        null,
+                        [
+                            React.createElement("h2", null, "Classement actuel"),
+                            React.createElement(
+                                "table",
+                                null,
+                                [
+                                    // En-tête du tableau
+                                    React.createElement(
+                                        "thead",
+                                        null,
+                                        React.createElement(
+                                            "tr",
+                                            null,
+                                            [
+                                                React.createElement("th", null, "Rang"),
+                                                React.createElement("th", null, "Joueur"),
+                                                React.createElement("th", null, "Score"),
+                                                React.createElement("th", null, "Découverts")
+                                            ]
+                                        )
+                                    ),
+                                    
+                                    // Corps du tableau
+                                    React.createElement(
+                                        "tbody",
+                                        null,
+                                        leaderboard.length > 0 ? 
+                                            leaderboard.map((entry, index) => 
+                                                React.createElement(
+                                                    "tr",
+                                                    { key: entry.id },
+                                                    [
+                                                        React.createElement("td", null, "#" + (index + 1)),
+                                                        React.createElement("td", null, entry.email.split('@')[0]),
+                                                        React.createElement("td", null, entry.score),
+                                                        React.createElement("td", null, `${entry.discovered || 0}/${entry.total || 100}`)
+                                                    ]
+                                                )
+                                            ) :
+                                            React.createElement(
+                                                "tr",
+                                                null,
+                                                React.createElement(
+                                                    "td",
+                                                    { colSpan: 4, style: { textAlign: "center" } },
+                                                    "Aucun score enregistré pour le moment"
+                                                )
+                                            )
+                                    )
+                                ]
+                            )
+                        ]
+                    ),
+                    
+                    // Formulaire d'email
                     React.createElement(
                         "form",
-                        { onSubmit: isSigningUp ? signUp : signIn },
+                        { 
+                            onSubmit: handleLogin,
+                            style: { marginTop: "20px", borderTop: "1px solid #ddd", paddingTop: "20px" }
+                        },
                         [
                             // Email
                             React.createElement(
                                 "div",
                                 { className: "form-group" },
                                 [
-                                    React.createElement("label", null, "Email:"),
+                                    React.createElement("label", null, "Votre email:"),
                                     React.createElement("input", {
                                         type: "email",
                                         value: email,
                                         onChange: (e) => setEmail(e.target.value),
-                                        required: true
-                                    })
-                                ]
-                            ),
-                            
-                            // Mot de passe
-                            React.createElement(
-                                "div",
-                                { className: "form-group" },
-                                [
-                                    React.createElement("label", null, "Mot de passe:"),
-                                    React.createElement("input", {
-                                        type: "password",
-                                        value: password,
-                                        onChange: (e) => setPassword(e.target.value),
+                                        placeholder: "exemple@alan.eu",
                                         required: true
                                     })
                                 ]
@@ -474,24 +487,7 @@
                             React.createElement(
                                 "button",
                                 { type: "submit" },
-                                isSigningUp ? "S'inscrire" : "Se connecter"
-                            )
-                        ]
-                    ),
-                    
-                    // Basculer entre connexion et inscription
-                    React.createElement(
-                        "p",
-                        null,
-                        [
-                            isSigningUp ? "Déjà un compte? " : "Pas encore de compte? ",
-                            React.createElement(
-                                "button",
-                                {
-                                    className: "toggle-auth",
-                                    onClick: () => setIsSigningUp(!isSigningUp)
-                                },
-                                isSigningUp ? "Se connecter" : "S'inscrire"
+                                "Commencer à jouer"
                             )
                         ]
                     ),
@@ -508,7 +504,7 @@
 
         // Rendu du composant
         ReactDOM.render(
-            React.createElement(LeaderboardApp),
+            React.createElement(SimpleLeaderboardApp),
             document.getElementById('root')
         );
     </script>
