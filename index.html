@@ -3,30 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Firebase et React</title>
+    <title>Test Authentification Firebase</title>
 
-    <!-- React (version développement pour des messages d'erreur plus clairs) -->
+    <!-- React (version développement) -->
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
 
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            max-width: 800px;
+            max-width: 600px;
             margin: 0 auto;
+            padding: 20px;
         }
         .container {
-            background-color: #f9f9f9;
+            background-color: #f5f5f5;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
         }
         button {
             background-color: #4285f4;
@@ -35,20 +49,23 @@
             padding: 10px 15px;
             border-radius: 4px;
             cursor: pointer;
-            margin-top: 10px;
-        }
-        input {
-            padding: 8px;
-            margin: 8px 0;
-            width: 100%;
+            margin-right: 10px;
         }
         .error {
-            color: red;
-            margin: 10px 0;
+            color: #d32f2f;
+            margin-top: 10px;
         }
         .success {
-            color: green;
-            margin: 10px 0;
+            color: #388e3c;
+            margin-top: 10px;
+        }
+        .toggle-auth {
+            background: none;
+            border: none;
+            color: #4285f4;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -67,7 +84,7 @@
             measurementId: "G-73746XWZ6C"
         };
 
-        // Vérification de l'initialisation de Firebase
+        // Initialisation de Firebase
         try {
             firebase.initializeApp(firebaseConfig);
             console.log("Firebase initialisé avec succès");
@@ -75,8 +92,8 @@
             console.error("Erreur d'initialisation Firebase:", error);
         }
 
-        // Composant principal React
-        function App() {
+        // Composant d'authentification
+        function AuthenticationApp() {
             const { useState, useEffect } = React;
             
             // États
@@ -86,47 +103,29 @@
             const [isSigningUp, setIsSigningUp] = useState(false);
             const [message, setMessage] = useState("");
             const [isError, setIsError] = useState(false);
-            const [firebaseStatus, setFirebaseStatus] = useState("Vérification de Firebase...");
-
-            // Vérifier si Firebase est disponible
-            useEffect(() => {
-                if (typeof firebase !== 'undefined') {
-                    setFirebaseStatus("Firebase est disponible ✓");
-                } else {
-                    setFirebaseStatus("Firebase n'est pas disponible ✗");
-                }
-            }, []);
 
             // Écouter les changements d'authentification
             useEffect(() => {
-                try {
-                    const unsubscribe = firebase.auth().onAuthStateChanged((currentUser) => {
-                        console.log("État de l'authentification changé:", currentUser);
-                        setUser(currentUser);
-                    });
-                    
-                    return () => unsubscribe();
-                } catch (error) {
-                    console.error("Erreur lors de l'écoute de l'authentification:", error);
-                    setMessage("Erreur lors de l'initialisation de l'authentification: " + error.message);
-                    setIsError(true);
-                }
+                const unsubscribe = firebase.auth().onAuthStateChanged((currentUser) => {
+                    console.log("État d'authentification changé:", currentUser);
+                    setUser(currentUser);
+                });
+                
+                return () => unsubscribe();
             }, []);
 
             // Fonction de connexion
             const signIn = async (e) => {
                 e.preventDefault();
                 setMessage("");
-                setIsError(false);
                 
                 try {
-                    console.log("Tentative de connexion avec:", email);
                     await firebase.auth().signInWithEmailAndPassword(email, password);
                     setMessage("Connexion réussie!");
                     setIsError(false);
                 } catch (error) {
                     console.error("Erreur de connexion:", error);
-                    setMessage("Erreur de connexion: " + error.message);
+                    setMessage("Erreur: " + error.message);
                     setIsError(true);
                 }
             };
@@ -135,16 +134,14 @@
             const signUp = async (e) => {
                 e.preventDefault();
                 setMessage("");
-                setIsError(false);
                 
                 try {
-                    console.log("Tentative d'inscription avec:", email);
                     await firebase.auth().createUserWithEmailAndPassword(email, password);
                     setMessage("Inscription réussie!");
                     setIsError(false);
                 } catch (error) {
                     console.error("Erreur d'inscription:", error);
-                    setMessage("Erreur d'inscription: " + error.message);
+                    setMessage("Erreur: " + error.message);
                     setIsError(true);
                 }
             };
@@ -157,106 +154,115 @@
                     setIsError(false);
                 } catch (error) {
                     console.error("Erreur de déconnexion:", error);
-                    setMessage("Erreur de déconnexion: " + error.message);
+                    setMessage("Erreur: " + error.message);
                     setIsError(true);
                 }
             };
 
-            // Rendu conditionnel
+            // Affichage si l'utilisateur est connecté
             if (user) {
-                // Utilisateur connecté
                 return React.createElement(
                     "div",
                     { className: "container" },
                     [
-                        React.createElement("h1", {}, "Bienvenue, " + user.email),
-                        React.createElement("p", {}, "Vous êtes connecté avec succès."),
-                        
-                        message && React.createElement(
-                            "div", 
-                            { className: isError ? "error" : "success" }, 
-                            message
-                        ),
-                        
+                        React.createElement("h1", null, "Utilisateur connecté"),
+                        React.createElement("p", null, "Email: " + user.email),
                         React.createElement(
                             "button",
                             { onClick: signOut },
-                            "Déconnexion"
+                            "Se déconnecter"
+                        ),
+                        message && React.createElement(
+                            "div",
+                            { className: isError ? "error" : "success" },
+                            message
                         )
                     ]
                 );
             }
 
-            // Utilisateur non connecté - Formulaire de connexion/inscription
+            // Formulaire de connexion/inscription
             return React.createElement(
                 "div",
                 { className: "container" },
                 [
-                    React.createElement("h1", {}, "Authentification Firebase"),
-                    React.createElement("p", {}, firebaseStatus),
-                    
-                    message && React.createElement(
-                        "div", 
-                        { className: isError ? "error" : "success" }, 
-                        message
-                    ),
+                    React.createElement("h1", null, isSigningUp ? "Inscription" : "Connexion"),
                     
                     React.createElement(
                         "form",
                         { onSubmit: isSigningUp ? signUp : signIn },
                         [
-                            React.createElement("div", {}, [
-                                React.createElement("label", {}, "Email:"),
-                                React.createElement("input", {
-                                    type: "email",
-                                    value: email,
-                                    onChange: (e) => setEmail(e.target.value),
-                                    required: true
-                                })
-                            ]),
+                            // Email
+                            React.createElement(
+                                "div",
+                                { className: "form-group" },
+                                [
+                                    React.createElement("label", null, "Email:"),
+                                    React.createElement("input", {
+                                        type: "email",
+                                        value: email,
+                                        onChange: (e) => setEmail(e.target.value),
+                                        required: true
+                                    })
+                                ]
+                            ),
                             
-                            React.createElement("div", {}, [
-                                React.createElement("label", {}, "Mot de passe:"),
-                                React.createElement("input", {
-                                    type: "password",
-                                    value: password,
-                                    onChange: (e) => setPassword(e.target.value),
-                                    required: true
-                                })
-                            ]),
+                            // Mot de passe
+                            React.createElement(
+                                "div",
+                                { className: "form-group" },
+                                [
+                                    React.createElement("label", null, "Mot de passe:"),
+                                    React.createElement("input", {
+                                        type: "password",
+                                        value: password,
+                                        onChange: (e) => setPassword(e.target.value),
+                                        required: true
+                                    })
+                                ]
+                            ),
                             
+                            // Bouton de soumission
                             React.createElement(
                                 "button",
                                 { type: "submit" },
                                 isSigningUp ? "S'inscrire" : "Se connecter"
-                            ),
-                            
-                            React.createElement(
-                                "p",
-                                { 
-                                    style: { cursor: "pointer", textDecoration: "underline", marginTop: "10px" },
-                                    onClick: () => setIsSigningUp(!isSigningUp)
-                                },
-                                isSigningUp ? "Déjà un compte? Connectez-vous" : "Pas de compte? Inscrivez-vous"
                             )
                         ]
+                    ),
+                    
+                    // Basculer entre connexion et inscription
+                    React.createElement(
+                        "p",
+                        null,
+                        [
+                            isSigningUp ? "Déjà un compte? " : "Pas encore de compte? ",
+                            React.createElement(
+                                "button",
+                                {
+                                    className: "toggle-auth",
+                                    onClick: () => setIsSigningUp(!isSigningUp)
+                                },
+                                isSigningUp ? "Se connecter" : "S'inscrire"
+                            )
+                        ]
+                    ),
+                    
+                    // Message d'erreur ou de succès
+                    message && React.createElement(
+                        "div",
+                        { className: isError ? "error" : "success" },
+                        message
                     )
                 ]
             );
         }
 
-        // Rendu de l'application
-        try {
-            ReactDOM.render(React.createElement(App), document.getElementById('root'));
-            console.log("Application React rendue avec succès");
-        } catch (error) {
-            console.error("Erreur lors du rendu de l'application:", error);
-            document.getElementById('root').innerHTML = 
-                '<div style="color: red; padding: 20px;">' +
-                '<h2>Erreur lors du chargement de l\'application</h2>' +
-                '<p>' + error.message + '</p>' +
-                '</div>';
-        }
+        // Rendu du composant
+        ReactDOM.render(
+            React.createElement(AuthenticationApp),
+            document.getElementById('root')
+        );
     </script>
 </body>
 </html>
